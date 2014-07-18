@@ -9,6 +9,63 @@ from cStringIO import StringIO
 import struct
 
 from ..base.message import BasicMessage
+from ..fix.constants import FIX
+
+
+def checksum(data):
+    """ Calculates the checksum of the message according to FIX.
+
+        This does not do any filtering of the data, so do not
+        calculate this with field 10 included.
+    """
+    chksum = 0
+    for c in data:
+        chksum = (chksum + struct.unpack('B', c)[0]) % 256
+
+    return chksum
+
+
+def _single_tag(tag, value):
+    """ Returns a string in the form of "tag=value\x01"
+    """
+    # Note that we are filtering out non-numeric characters from
+    # the tag IDs.  For nested groups, we append on non-numeric
+    # characters to disambiguate the tags (we are using a dict() to
+    # store the fields).
+    return (''.join([c for c in str(tag) if c.isdigit()]) +
+            '=' + str(value) + b'\x01')
+
+
+def _write_single_tag(output, tag, value):
+    """ Writes a single tag. Value must not be a container.
+
+        This is a FIX-formatted message, so this assumes that the
+        key is a numeric string, that is only digits are allowed.
+
+        Args:
+            output:
+            tag:
+            value:
+    """
+    output.write(_single_tag(tag, value))
+
+
+def _write_tag(output, tag, value):
+    """ Writes a tag to the output. The value may be hiearchical.
+
+        Args:
+            output:
+            tag: The ID portion.
+            value: The value portion.  This may be a nested group.
+    """
+    if hasattr(value, '__iter__'):
+        # write out the number of subgroups
+        _write_single_tag(output, tag, len(value))
+        for subgroup in value:
+            for k, v in subgroup.iteritems():
+                _write_tag(output, k, v)
+    else:
+        _write_single_tag(output, tag, value)
 
 
 class FIXMessage(BasicMessage):
@@ -19,8 +76,30 @@ class FIXMessage(BasicMessage):
         provides support for FIX-like protocols, but not necessarily
         for a specific version.
     """
+
     def __init__(self, **kwargs):
-        super(FIXMessage, self).__init__(**kwargs)
+        """ Initialization
+
+            Args:
+                source: A source message.  This will be used to initialize
+                    the message.
+                required: A list of required tag IDs.  Sequence ordering
+                    matters.  (Default: [8, 9, 35, 49, 56])
+                    8 = BeginString
+                    9 = BodyLength
+                    35 = MsgType
+                    49 = SenderCompID
+                    56 = TargetCompID
+        """
+        super(FIXMessage, self).__init__()
+
+        # Preinsert required header fields
+        required = kwargs.get('required', [8, 9, 35, 49, 56])
+        for tag in required:
+            self[tag] = ''
+
+        if 'source' in kwargs:
+            self.update(kwargs['source'])
 
     def msg_type(self):
         """ Returns the MessageType field (tag 35) of the message.
@@ -29,40 +108,11 @@ class FIXMessage(BasicMessage):
         """
         return self[35]
 
-    def _write_single_tag(self, output, tag, value):
-        """ Writes a single tag. Value must not be a container.
-
-            This is a FIX-formatted message, so this assumes that the
-            key is a numeric string, that is only digits are allowed.
-
-            Args:
-                output:
-                tag:
-                value:
-        """
-        # pylint: disable=no-self-use
-        output.write(''.join([c for c in str(tag) if c.isdigit()]) +
-                     '=' + str(value) + b'\x01')
-
-    def _write_tag(self, output, tag, value):
-        """ Writes a tag to the output. The value may be hiearchical.
-
-            Args:
-                output:
-                tag: The ID portion.
-                value: The value portion.  This may be a nested group.
-        """
-        if hasattr(value, '__iter__'):
-            # write out the number of subgroups
-            self._write_single_tag(output, tag, len(value))
-            for subgroup in value:
-                for k, v in subgroup.iteritems():
-                    self._write_tag(output, k, v)
-        else:
-            self._write_single_tag(output, tag, value)
-
     def to_binary(self, **kwargs):
         """ Converts the message into the on-the-wire format.
+
+            This will prepare the message for sending by updating
+            the body length (9) and checksum (10) fields.
 
             Args:
                 include: A list of tags to explicitly include, tags not
@@ -89,36 +139,24 @@ class FIXMessage(BasicMessage):
             if excludes is not None and k in excludes:
                 continue
 
+            # Generate the binary without these fields
+            if k == str(8) or k == str(9) or k == str(FIX.CHECKSUM):
+                continue
+
             # write a tag out, this may be a grouped value
-            self._write_tag(output, k, v)
+            _write_tag(output, k, v)
 
-        return output.getvalue()
+        message = output.getvalue()
 
-    def update_body_lengh(self):
-        """ Updates the body-length field (tag 9) of the message.
+        # prepend 8 (BeginString) and 9 (BodyLength)
+        self[9] = len(message)
+        message = _single_tag(8, self[8]) + _single_tag(9, self[9]) + message
 
-            Fields 8, 9, 10 are not included when calculating the
-            length of the message (according to the FIX spec).
-        """
-        self[9] = len(self.to_binary(exclude=[8, 9, 10]))
-
-    def update_checksum(self):
-        """ Updates the checksum field (tag 10) of the message.
-
-            The checksum is calculated and field 10 is updated.
-            Field 10 is then reappended to the end of the message,
-            the FIX spec requires that the checksum (field 10) is
-            always at the end of the message.
-        """
+        # calc and append the 10 (CheckSum)
         if 10 in self:
             del self[10]
-
-        data = self.to_binary(exclude=[10])
-        chksum = 0
-        for c in data:
-            chksum = (chksum + struct.unpack('B', c)[0]) % 256
-
-        self[10] = '%03d' % chksum
+        self[10] = '%03d' % checksum(message)
+        return message + _single_tag(10, self[10])
 
     def verify(self, tags=None, exists=None, not_exists=None):
         """ Checks for the existence/value of tags/values.

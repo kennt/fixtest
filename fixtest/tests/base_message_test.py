@@ -103,8 +103,26 @@ class TestBasicMessage(unittest.TestCase):
         self.assertEquals('20', items[2][0])
         self.assertEquals(2020, items[2][1])
 
-    def test_modify(self):
-        pass
+    def test_ordering(self):
+        mess = BasicMessage()
+        self.assertEquals(0, len(mess))
+
+        mess[12] = 12
+        mess[13] = 13
+        self.assertEquals(2, len(mess))
+
+        del mess[12]
+        self.assertEquals(1, len(mess))
+        self.assertTrue(13 in mess)
+        self.assertTrue(12 not in mess)
+
+        mess[12] = 14
+        self.assertEquals(2, len(mess))
+        items = [(k, v) for k, v in mess.items()]
+        self.assertEquals('13', items[0][0])
+        self.assertEquals(13, items[0][1])
+        self.assertEquals('12', items[1][0])
+        self.assertEquals(14, items[1][1])
 
 
 if __name__ == '__main__':
