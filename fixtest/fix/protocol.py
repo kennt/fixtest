@@ -6,8 +6,10 @@
 
 """
 
-from twisted.internet import protocol
+import logging
+from twisted.internet import protocol, reactor
 
+from base.utils import log_text
 from fix.parser import FIXParser
 
 
@@ -88,6 +90,8 @@ class FIXProtocol(protocol.Protocol):
                                 max_length=self.link_config.get(
                                     'max_length', 2048))
 
+        self._logger = logging.getLogger(__name__)
+
     def dataReceived(self, data):
         """ This is the callback that is called from Twisted.
         """
@@ -96,6 +100,11 @@ class FIXProtocol(protocol.Protocol):
     def send_message(self, message):
         """ Sends a message via the transport.
         """
+        if self.transport:
+            reactor.callFromThread(self.transport.write, message.to_binary())
+        else:
+            log_text(self._logger.info, None,
+                     'Cannot send message, no transport')
 
     def on_message_received(self, message):
         """ This is the callback from the parser when a message has

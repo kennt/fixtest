@@ -10,13 +10,7 @@ import unittest
 
 from ..fix.constants import FIX
 from ..fix.message import checksum, FIXMessage
-
-
-def to_fix(*args):
-    """ Join a series of strings into a FIX binary message,
-        a field list separated by \x01
-    """
-    return '\x01'.join(args) + '\x01'
+from ..tests.utils import to_fix
 
 
 class TestFIXMessage(unittest.TestCase):
@@ -43,7 +37,7 @@ class TestFIXMessage(unittest.TestCase):
                                           '98=0',
                                           '108=30')))
 
-    def test_required_fields(self):
+    def test_header_fields(self):
         mess = FIXMessage()
         self.assertEquals(5, len(mess))
 
@@ -59,7 +53,7 @@ class TestFIXMessage(unittest.TestCase):
         self.assertEquals('9', items[1][0])
 
         # Custom required fields
-        mess = FIXMessage(required=[1024, 8, 9])
+        mess = FIXMessage(header_fields=[1024, 8, 9])
         self.assertTrue(8 in mess)
         self.assertTrue(9 in mess)
         self.assertTrue(35 not in mess)
@@ -148,7 +142,7 @@ class TestFIXMessage(unittest.TestCase):
                           data)
 
     def test_to_binary_group(self):
-        mess = FIXMessage(required=[8, 9])
+        mess = FIXMessage(header_fields=[8, 9])
         tags = collections.OrderedDict()
         mess[8] = 'FIX.4.2'
         mess[9] = '---'
@@ -167,7 +161,7 @@ class TestFIXMessage(unittest.TestCase):
                           data)
 
     def test_to_binary_binarydata(self):
-        mess = FIXMessage(required=[8, 9])
+        mess = FIXMessage(header_fields=[8, 9])
         mess[8] = 'FIX.4.2'
         mess[9] = '---'
         mess[110] = 2

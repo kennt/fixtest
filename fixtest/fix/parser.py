@@ -6,6 +6,20 @@
 """
 
 
+class FIXMessageParseError(ValueError):
+    """ Exception: FIX Message is not in proper FIX format. """
+    def __init__(self, message):
+        super(FIXMessageParseError, self).__init__()
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
+class FIXMessageLengthExceededError(ValueError):
+    """ Exception: FIX message too long. """
+
+
 class FIXParser(object):
     """ Implements the core decoding of FIX messages.  The encoding
         portion is taken up by the FIXMessage itself.
@@ -17,6 +31,7 @@ class FIXParser(object):
 
         Attributes:
     """
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self, on_message, on_error, **kwargs):
         """ FIXParser initialization
@@ -26,6 +41,7 @@ class FIXParser(object):
                     full message has been received.
                 on_error: A callback.  This function is called when an error
                     has been detected while processing data.
+                header_fields: A list of header tags.
                 binary_fields: A list of tags indicating binary fields.
                     Note that binary fields come in pairs.  The first
                     field contains the length of the data and the second
@@ -40,6 +56,7 @@ class FIXParser(object):
         """
         self._on_message = on_message
         self._on_error = on_error
+        self._header_fields = kwargs.get('header_fields', [8, 9, 35, 49, 56])
         self._binary_fields = kwargs.get('binary_fields', list())
         self._group_fields = kwargs.get('group_fields', list())
         self._max_length = kwargs.get('max_length', 2048)

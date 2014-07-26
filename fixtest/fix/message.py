@@ -82,8 +82,8 @@ class FIXMessage(BasicMessage):
             Args:
                 source: A source message.  This will be used to initialize
                     the message.
-                required: A list of required tags.  Sequence ordering
-                    matters.  (Default: [8, 9, 35, 49, 56])
+                header_fields: A list of header tags.
+                    Sequence ordering matters.  (Default: [8, 9, 35, 49, 56])
                     8 = BeginString
                     9 = BodyLength
                     35 = MsgType
@@ -92,9 +92,9 @@ class FIXMessage(BasicMessage):
         """
         super(FIXMessage, self).__init__()
 
-        # Preinsert required header fields
-        required = kwargs.get('required', [8, 9, 35, 49, 56])
-        for tag in required:
+        # Preinsert header fields
+        header = kwargs.get('header_fields', [8, 9, 35, 49, 56])
+        for tag in header:
             self[tag] = ''
 
         if 'source' in kwargs:
@@ -139,7 +139,7 @@ class FIXMessage(BasicMessage):
                 continue
 
             # Generate the binary without these fields
-            if k == str(8) or k == str(9) or k == str(10):
+            if k in ['8', '9', '10']:
                 continue
 
             # write a field out, this may be a grouped value
@@ -148,7 +148,7 @@ class FIXMessage(BasicMessage):
         mess = output.getvalue()
 
         # prepend 8 (BeginString) and 9 (BodyLength)
-        # TODO: What to do if 8, 9 do not exist in the message?
+        # Note that 8 and 9 are the minimal set of required fields
         self[9] = len(mess)
         mess = _single_field(8, self[8]) + _single_field(9, self[9]) + mess
 
