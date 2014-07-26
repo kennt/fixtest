@@ -5,6 +5,7 @@
 
 """
 
+import collections
 import unittest
 
 from ..fix.constants import FIX
@@ -128,17 +129,81 @@ class TestFIXMessage(unittest.TestCase):
                           data)
 
     def test_to_binary_exclude(self):
-        self.assertTrue(False)
+        mess = FIXMessage()
+        mess[8] = 'FIX.4.2'
+        mess[9] = '---'
+        mess[35] = 'A'
+        mess[49] = 'SERVER'
+        mess[56] = 'CLIENT'
+        mess[99] = 'X'
+        mess[177] = 'hello'
+
+        data = mess.to_binary(exclude=[35, 177])
+        self.assertEquals(to_fix('8=FIX.4.2',
+                                 '9=25',
+                                 '49=SERVER',
+                                 '56=CLIENT',
+                                 '99=X',
+                                 '10=239'),
+                          data)
 
     def test_to_binary_group(self):
-        self.assertTrue(False)
+        mess = FIXMessage(required=[8, 9])
+        tags = collections.OrderedDict()
+        mess[8] = 'FIX.4.2'
+        mess[9] = '---'
+        tags[110] = 2
+        tags[111] = 'abcd'
+
+        mess[100] = [tags, ]
+        data = mess.to_binary()
+
+        self.assertEquals(to_fix('8=FIX.4.2',
+                                 '9=21',
+                                 '100=1',
+                                 '110=2',
+                                 '111=abcd',
+                                 '10=086'),
+                          data)
 
     def test_to_binary_binarydata(self):
-        self.assertTrue(False)
+        mess = FIXMessage(required=[8, 9])
+        mess[8] = 'FIX.4.2'
+        mess[9] = '---'
+        mess[110] = 2
+        mess[111] = '\x01\x02a\xbbbcd'
+
+        data = mess.to_binary()
+
+        self.assertEquals(to_fix('8=FIX.4.2',
+                                 '9=18',
+                                 '110=2',
+                                 '111=\x01\x02a\xbbbcd',
+                                 '10=026'),
+                          data)
 
     def test_verify(self):
-        self.assertTrue(False)
+        mess = FIXMessage()
+        mess[8] = 'FIX.4.2'
+        mess[9] = '---'
+        mess[35] = 'A'
+        mess[49] = 'SERVER'
+        mess[56] = 'CLIENT'
+        mess[99] = 'X'
+        mess[177] = 'hello'
 
+        self.assertTrue(mess.verify(fields=[(8, 'FIX.4.2'), (35, 'A')]))
+        self.assertFalse(mess.verify(fields=[(8, 'NOFIX')]))
+
+        self.assertTrue(mess.verify(exists=[8, 35, 177]))
+        self.assertFalse(mess.verify(exists=[9, 8, 2000]))
+
+        self.assertTrue(mess.verify(not_exists=[2000, 20001]))
+        self.assertFalse(mess.verify(not_exists=[177]))
+
+        self.assertTrue(mess.verify(fields=[(99, 'X')],
+                                    exists=[56, 99, 177],
+                                    not_exists=[2001, 2002, 2003]))
 
 if __name__ == '__main__':
     unittest.main()

@@ -9,7 +9,6 @@ from cStringIO import StringIO
 import struct
 
 from ..base.message import BasicMessage
-from ..fix.constants import FIX
 
 
 def checksum(data):
@@ -25,19 +24,19 @@ def checksum(data):
     return chksum
 
 
-def _single_tag(tag, value):
+def _single_field(tag, value):
     """ Returns a string in the form of "tag=value\x01"
     """
     # Note that we are filtering out non-numeric characters from
-    # the tag IDs.  For nested groups, we append on non-numeric
+    # the tags.  For nested groups, we append on non-numeric
     # characters to disambiguate the tags (we are using a dict() to
     # store the fields).
     return (''.join([c for c in str(tag) if c.isdigit()]) +
             '=' + str(value) + b'\x01')
 
 
-def _write_single_tag(output, tag, value):
-    """ Writes a single tag. Value must not be a container.
+def _write_single_field(output, tag, value):
+    """ Writes a single field. Value must not be a container.
 
         This is a FIX-formatted message, so this assumes that the
         key is a numeric string, that is only digits are allowed.
@@ -47,11 +46,11 @@ def _write_single_tag(output, tag, value):
             tag:
             value:
     """
-    output.write(_single_tag(tag, value))
+    output.write(_single_field(tag, value))
 
 
-def _write_tag(output, tag, value):
-    """ Writes a tag to the output. The value may be hiearchical.
+def _write_field(output, tag, value):
+    """ Writes a field to the output. The value may be hiearchical.
 
         Args:
             output:
@@ -60,12 +59,12 @@ def _write_tag(output, tag, value):
     """
     if hasattr(value, '__iter__'):
         # write out the number of subgroups
-        _write_single_tag(output, tag, len(value))
+        _write_single_field(output, tag, len(value))
         for subgroup in value:
             for k, v in subgroup.iteritems():
-                _write_tag(output, k, v)
+                _write_field(output, k, v)
     else:
-        _write_single_tag(output, tag, value)
+        _write_single_field(output, tag, value)
 
 
 class FIXMessage(BasicMessage):
@@ -83,7 +82,7 @@ class FIXMessage(BasicMessage):
             Args:
                 source: A source message.  This will be used to initialize
                     the message.
-                required: A list of required tag IDs.  Sequence ordering
+                required: A list of required tags.  Sequence ordering
                     matters.  (Default: [8, 9, 35, 49, 56])
                     8 = BeginString
                     9 = BodyLength
@@ -140,46 +139,47 @@ class FIXMessage(BasicMessage):
                 continue
 
             # Generate the binary without these fields
-            if k == str(8) or k == str(9) or k == str(FIX.CHECKSUM):
+            if k == str(8) or k == str(9) or k == str(10):
                 continue
 
-            # write a tag out, this may be a grouped value
-            _write_tag(output, k, v)
+            # write a field out, this may be a grouped value
+            _write_field(output, k, v)
 
-        message = output.getvalue()
+        mess = output.getvalue()
 
         # prepend 8 (BeginString) and 9 (BodyLength)
-        self[9] = len(message)
-        message = _single_tag(8, self[8]) + _single_tag(9, self[9]) + message
+        # TODO: What to do if 8, 9 do not exist in the message?
+        self[9] = len(mess)
+        mess = _single_field(8, self[8]) + _single_field(9, self[9]) + mess
 
         # calc and append the 10 (CheckSum)
         if 10 in self:
             del self[10]
-        self[10] = '%03d' % checksum(message)
-        return message + _single_tag(10, self[10])
+        self[10] = '%03d' % checksum(mess)
+        return mess + _single_field(10, self[10])
 
-    def verify(self, tags=None, exists=None, not_exists=None):
+    def verify(self, fields=None, exists=None, not_exists=None):
         """ Checks for the existence/value of tags/values.
 
             Args:
-                tags: A list of (tag, value) pairs.  The message
+                fields: A list of (tag, value) pairs.  The message
                     is searched for the tag and then checked to see if
                     the value is equal.
-                exists: A list of tag ids.  The message is checked
+                exists: A list of tags.  The message is checked
                     for the existence of these tags (the value doesn't
                     matter).
-                not_exists: A list of tag ids.  The message is checked
+                not_exists: A list of tags.  The message is checked
                     to see that it does NOT contain these tags.
 
             Returns: True if the conditions are satisifed.
                 False otherwise.
         """
-        tags = tags or list()
+        fields = fields or list()
         exists = exists or list()
-        not_exists = exists or list()
+        not_exists = not_exists or list()
 
-        for tag in tags:
-            if tag[0] not in self or str(self[tag[0]]) != str(tag[1]):
+        for field in fields:
+            if field[0] not in self or str(self[field[0]]) != str(field[1]):
                 return False
 
         for tag in exists:
