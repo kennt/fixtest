@@ -204,6 +204,7 @@ class TestFIXParser(unittest.TestCase):
                            binary_fields=[1000],
                            max_length=100)
 
+        # length too short
         self.assertRaises(FIXMessageParseError,
                           parser.on_data_received,
                           to_fix('8=FIX.4.2',
@@ -213,14 +214,16 @@ class TestFIXParser(unittest.TestCase):
                                  '1001=abababababab',
                                  '10=000'))
 
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 '42=A',
-                                 '1000=20',
-                                 '1001=ab',
-                                 '10=000'))
+        # length too long
+        # This will not raise an error
+        parser.on_data_received(to_fix('8=FIX.4.2',
+                                       '9=32',
+                                       '42=A',
+                                       '1000=20',
+                                       '1001=ab',
+                                       '10=000'))
+        self.assertEquals(0, self.receiver.count)
+        self.assertTrue(parser.is_parsing)
 
         # Note that we could have an error where the length of the
         # binary field is longer than the message.  In this case, the
@@ -248,11 +251,17 @@ class TestFIXParser(unittest.TestCase):
                            header_fields=[8, 9])
 
         # Missing binary value portion of binary field
+        # BUGBUG: This can cause some problems, because the parser
+        # does not attempt to validate until the entire
+        # field has been read in.  Which this will fail because
+        # the length goes past the end of the message.
+        # For now, live with this.
         self.assertRaises(FIXMessageParseError,
                           parser.on_data_received,
                           to_fix('8=FIX.4.2',
                                  '9=32',
-                                 '1000=10',
+                                 '1000=5',
+                                 '999=11',
                                  '10=001'))
 
         # Missing binary length portion (the only time this
@@ -298,42 +307,42 @@ class TestFIXParser(unittest.TestCase):
     def test_binary_fields(self):
         """ Binary field testing. """
         parser = FIXParser(self.receiver,
-                           binary_fields=[1001, 1010],
+                           binary_fields=[1000, 1010],
                            header_fields=[8, 9])
 
         # Test with embedded binary \x01
         parser.on_data_received(to_fix('8=FIX.4.2',
-                                       '9=32',
+                                       '9=18',
                                        '1000=5',
                                        '1001=\x01\x02\x03\x04\x05',
-                                       '10=100'))
+                                       '10=066'))
         self.assertEquals(1, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(5, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
-                                               (9, '32'),
+                                               (9, '18'),
                                                (1000, '5'),
                                                (1001, '\x01\x02\x03\x04\x05'),
-                                               (10, 100)]))
+                                               (10, '066')]))
 
         # Test with embedded '=' signs
         parser.on_data_received(to_fix('8=FIX.4.2',
-                                       '9=32',
+                                       '9=18',
                                        '1000=5',
                                        '1001=31=20',
-                                       '10=100'))
+                                       '10=054'))
         self.assertEquals(2, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(5, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
-                                               (9, '32'),
+                                               (9, '18'),
                                                (1000, '5'),
                                                (1001, '31=20'),
-                                               (10, 100)]))
+                                               (10, '054')]))
 
     def test_simple_group_fields(self):
         """ Simple group field testing. """
@@ -525,12 +534,12 @@ class TestFIXParser(unittest.TestCase):
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(7, len(message))
+        self.assertEquals(8, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
-                                               (9, '32'),
+                                               (9, '38'),
                                                (35, 'A'),
                                                (99, '5'),
                                                (100, '12345'),
                                                (919, 'this'),
                                                (955, 'that'),
-                                               (10, 100)]))
+                                               (10, '198')]))

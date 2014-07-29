@@ -75,6 +75,7 @@ class FIXParser(object):
                     IDs that belong to the group.
                 max_length: Maximum length of a FIX message supported
                     (Default: 2048).
+                debug: Set to True for more debugging output
         """
         self.is_parsing = False
 
@@ -83,6 +84,7 @@ class FIXParser(object):
         self._binary_fields = kwargs.get('binary_fields', list())
         self._group_fields = kwargs.get('group_fields', list())
         self._max_length = kwargs.get('max_length', 2048)
+        self._debug = kwargs.get('debug', False)
 
         self._buffer = b''
         self.is_receiving_data = False
@@ -90,6 +92,8 @@ class FIXParser(object):
         self._message = FIXMessage(header_fields=self._header_fields)
         self._checksum = 0
         self._message_length = 0
+        self._binary_length = -1
+        self._binary_tag = 0
 
     def reset(self, flush_buffer=False):
         """ Reset the protocol state so that it is ready to accept a
@@ -99,6 +103,8 @@ class FIXParser(object):
         self._message = FIXMessage(header_fields=self._header_fields)
         self._checksum = 0
         self._message_length = 0
+        self._binary_length = -1
+        self._binary_tag = 0
         if flush_buffer:
             self._buffer = b''
 
@@ -135,7 +141,7 @@ class FIXParser(object):
                 data: The binary data that has been received.  This may
                     either be a binary string or a single byte ot data.
         """
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches,too-many-statements
 
         if self.is_receiving_data is True:
             self._buffer += data
@@ -149,9 +155,20 @@ class FIXParser(object):
             # We start processing only once we have an entire field
             # (e.g. 'id=value') in the buffer, otherwise wait for more
             # data.
-            while len(self._buffer) > 0 and self._buffer.find(b'\x01') != -1:
+            # The problem with this approach is that if there is a
+            # binary field with an incorrect length, we may read past
+            # the end of the message.
+            while (len(self._buffer) > 0 and
+                    self._buffer.find(b'\x01', self._binary_length + 1) != -1):
+
+                # Need to make sure that we have the entire binary field
+                # before continuing the processing
+                if (self._binary_length > 0 and
+                        len(self._buffer) < self._binary_length):
+                    break
+
                 # break up the field
-                delim = self._buffer.find(b'\x01')
+                delim = self._buffer.find(b'\x01', self._binary_length + 1)
                 field = self._buffer[:delim]
                 self._buffer = self._buffer[delim+1:]
 
@@ -177,11 +194,30 @@ class FIXParser(object):
                     self._checksum = checksum(field, self._checksum) + 1
 
                 # is this a group field
-                # is this a binary field
 
                 # update the message
-                # print "tag{0} = {1}".format(tag_id, value)
+                if self._debug:
+                    print "tag {0} = {1}".format(tag_id, repr(value))
                 self._message[tag_id] = value
+
+                if self._binary_tag == 0:
+                    if tag_id in self._binary_fields:
+                        self._binary_length = len(str(tag_id + 1)) + int(value)
+                        self._binary_tag = tag_id
+                    else:
+                        self._binary_length = -1
+                else:
+                    # Is this the wrong tag?
+                    if tag_id != (self._binary_tag + 1):
+                        raise FIXMessageParseError(
+                            'expected binary tag {0} found {1}'.format(
+                                self._binary_tag + 1, tag_id))
+                    if len(field) != self._binary_length + 1:
+                        raise FIXMessageParseError(
+                            'binary length: expected {0} found {1}'.format(
+                                self._binary_length + 1, len(field)))
+                    self._binary_tag = 0
+                    self._binary_length = -1
 
                 # Is this the end of a message?
                 if tag_id == 10:
@@ -197,7 +233,12 @@ class FIXParser(object):
 
                     self._receiver.on_message_received(self._message)
                     self.reset()
+                # else:
+                    # Is this the data part of a binary tag?
 
+        except FIXMessageLengthExceededError, err:
+            self.reset(flush_buffer=True)
+            self._receiver.on_error_received(err)
         except FIXMessageParseError, err:
             self.reset(flush_buffer=True)
             self._receiver.on_error_received(err)
