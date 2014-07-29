@@ -5,6 +5,8 @@
 
 """
 
+from ..fix.message import FIXMessage
+
 
 class FIXMessageParseError(ValueError):
     """ Exception: FIX Message is not in proper FIX format. """
@@ -62,8 +64,9 @@ class FIXParser(object):
                     the IDs are sequential.  For example, if the length field
                     is tag 123, then tag 124 contains the data.  Note that
                     only the first field should be included in this list.
-                group_fields: A list of tuples (groupID, taglist) indicating
-                    the list of group fields supported.
+                group_fields: A dictionary of fields that belong to a group.
+                    The key is the group ID field that maps to a list of
+                    IDs that belong to the group.
                 max_length: Maximum length of a FIX message supported
                     (Default: 2048).
         """
@@ -78,13 +81,37 @@ class FIXParser(object):
         self._buffer = b''
         self.is_receiving_data = False
 
+        self._message = FIXMessage(header_fields=self._header_fields)
+
     def reset(self):
         """ Reset the protocol state so that it is ready to accept a
             new message.
         """
         self.is_parsing = False
         self._buffer = b''
-        self.is_receiving_data = False
+        self._message = FIXMessage(header_fields=self._header_fields)
+
+    def _parse_field(self, buf):
+        """ Parses the 'id=value' field.  id must be a number.
+
+            Returns: a tuple containing (id, value).
+
+            Raises:
+                FIXMessageParseError
+        """
+        # pylint: disable=no-self-use
+
+        delim = buf.find('=')
+        if delim == -1:
+            raise FIXMessageParseError('Incorrect format: missing "="')
+
+        tag_id = 0
+        try:
+            tag_id = int(buf[:delim])
+        except ValueError:
+            raise FIXMessageParseError('Incorrect format: ID must be a number')
+
+        return (tag_id, buf[delim+1:])
 
     def on_data_received(self, data):
         """ Passes data to the parser.
@@ -105,5 +132,35 @@ class FIXParser(object):
             self.is_receiving_data = True
             self._buffer += data
 
+            # Keep looping while we have unprocessed data
+            # We start processing only once we have an entire field
+            # (e.g. 'id=value') in the buffer, otherwise wait for more
+            # data.
+            while len(self._buffer) > 0 and self._buffer.find(b'\x01') != -1:
+                # break up the field
+                delim = self._buffer.find(b'\x01')
+                field = self._buffer[:delim]
+                self._buffer = self._buffer[delim+1:]
+
+                tag_id, value = self._parse_field(field)
+
+                # Is this the start of a message?
+                if tag_id == 8:
+                    if self.is_parsing:
+                        raise FIXMessageParseError('unexpected tag: 8')
+                    self.is_parsing = True
+                elif not self.is_parsing:
+                    raise FIXMessageParseError('message must start with tag 8')
+
+                self._message[tag_id] = value
+
+                # Is this the end of a message?
+                if tag_id == 10:
+                    self._receiver.on_message_received(self._message)
+                    self.reset()
+
+        except FIXMessageParseError, err:
+            self.reset()
+            self._receiver.on_error_received(err)
         finally:
             self.is_receiving_data = False

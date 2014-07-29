@@ -62,8 +62,9 @@ class FIXProtocol(protocol.Protocol):
                         field is tag 123, then tag 124 contains the data.
                         Note that only the first field should be included
                         in this list.
-                    group_fields: The list of FIX binary fields supported
-                        or needed by this link (Default: None).
+                    group_fields: A dictionary of fields that belong
+                        to a group. The key is the group ID field that maps
+                        to a list of IDs that belong to the group.
                     max_length: The maximum length of message (Default: 2048)
                 debug: Set this to True for debug logging.  (Default: False)
 

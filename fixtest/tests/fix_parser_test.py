@@ -15,20 +15,61 @@ from ..tests.utils import to_fix
 # pylint: disable=missing-docstring
 
 
+class MockFIXReceiver(object):
+    def __init__(self):
+        self.count = 0
+        self.last_received_message = None
+        self.last_error = None
+
+    def on_message_received(self, message):
+        self.count += 1
+        self.last_received_message = message
+
+    def on_error_received(self, error):
+        self.last_error = error
+
+
+class TestFIXParserInternals(unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(TestFIXParserInternals, self).__init__(*args, **kwargs)
+
+        self.receiver = None
+
+    def setUp(self):
+        self.receiver = MockFIXReceiver()
+
+    def test_parse_field(self):
+        """ Basic _parse_field function test """
+        parser = FIXParser(self.receiver)
+
+        field = parser._parse_field('8=a')
+        self.assertEquals(8, field[0])
+        self.assertEquals('a', field[1])
+
+    def test_parse_field_bad_input(self):
+        """ Test bad _parse_field inputs """
+        parser = FIXParser(self.receiver)
+
+        # missing '='
+        self.assertRaises(FIXMessageParseError,
+                          parser._parse_field,
+                          'abcde')
+        # bad tag id
+        self.assertRaises(FIXMessageParseError,
+                          parser._parse_field,
+                          'a=a')
+        # missing tag id
+        self.assertRaises(FIXMessageParseError,
+                          parser._parse_field,
+                          '=a')
+        # bad tag id
+        self.assertRaises(FIXMessageParseError,
+                          parser._parse_field,
+                          '10b=a')
+
+
 class TestFIXParser(unittest.TestCase):
-
-    class MockFIXReceiver(object):
-        def __init__(self):
-            self.count = 0
-            self.last_received_message = None
-            self.last_error = None
-
-        def on_message_received(self, message):
-            self.count += 1
-            self.last_received_message = message
-
-        def on_error_received(self, error):
-            self.last_error = error
 
     def __init__(self, *args, **kwargs):
         super(TestFIXParser, self).__init__(*args, **kwargs)
@@ -36,7 +77,7 @@ class TestFIXParser(unittest.TestCase):
         self.receiver = None
 
     def setUp(self):
-        self.receiver = TestFIXParser.MockFIXReceiver()
+        self.receiver = MockFIXReceiver()
 
     def test_simple_message(self):
         """ Basic function test. """
@@ -51,13 +92,40 @@ class TestFIXParser(unittest.TestCase):
         self.assertFalse(parser.is_parsing)
         self.assertEquals(1, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(4, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
                                                (9, '32'),
                                                (35, 'A'),
                                                (10, 100)]))
+
+    def test_message_starts_incorrectly(self):
+        """ Message must start with tag 8 """
+        parser = FIXParser(self.receiver,
+                           header_fields=[8, 9])
+
+        # message does not start with tag 8
+        parser.on_data_received(to_fix('18=FIX.4.2',
+                                       '9=32',
+                                       '8=FIX.4.2',
+                                       '35=A',
+                                       '10=100'))
+        self.assertIsNotNone(self.receiver.last_error)
+        self.assertTrue(isinstance(self.receiver.last_error,
+                                   FIXMessageParseError))
+        self.receiver.last_error = None
+
+        # unexpected tag 8
+        parser.on_data_received(to_fix('8=FIX.4.2',
+                                       '9=32',
+                                       '8=abcdef',
+                                       '35=A',
+                                       '10=100'))
+        self.assertIsNotNone(self.receiver.last_error)
+        self.assertTrue(isinstance(self.receiver.last_error,
+                                   FIXMessageParseError))
+        self.receiver.last_error = None
 
     def test_partial_message(self):
         """ Test for partial input. """
@@ -223,16 +291,16 @@ class TestFIXParser(unittest.TestCase):
                                        '10=100'))
         self.assertEquals(1, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         message[320] = 'hello there'
         self.assertEquals(5, len(message))
 
         # verify the order of the message
         items = [(k, v) for k, v in message.items()]
-        self.assertEquals('8', items[0][0])
-        self.assertEquals('9', items[1][0])
-        self.assertEquals('320', items[2][0])
+        self.assertEquals(8, items[0][0])
+        self.assertEquals(9, items[1][0])
+        self.assertEquals(320, items[2][0])
 
     def test_binary_fields(self):
         """ Binary field testing. """
@@ -277,8 +345,8 @@ class TestFIXParser(unittest.TestCase):
     def test_simple_group_fields(self):
         """ Simple group field testing. """
         parser = FIXParser(self.receiver,
-                           group_fields=[(100, [101, 102, 200]),
-                                         (200, [201, 202])],
+                           group_fields={100: [101, 102, 200],
+                                         200: [201, 202], },
                            header_fields=[8, 9])
 
         parser.on_data_received(to_fix('8=FIX.4.2',
@@ -289,7 +357,7 @@ class TestFIXParser(unittest.TestCase):
                                        '10=100'))
         self.assertEquals(1, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(4, len(message))
 
@@ -308,8 +376,8 @@ class TestFIXParser(unittest.TestCase):
     def test_multiple_groups(self):
         """ Test the receiving of multiple groups """
         parser = FIXParser(self.receiver,
-                           group_fields=[(100, [101, 102, 200]),
-                                         (200, [201, 202])],
+                           group_fields={100: [101, 102, 200],
+                                         200: [201, 202], },
                            header_fields=[8, 9])
 
         parser.on_data_received(to_fix('8=FIX.4.2',
@@ -322,7 +390,7 @@ class TestFIXParser(unittest.TestCase):
                                        '10=100'))
         self.assertEquals(1, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(4, len(message))
 
@@ -346,8 +414,8 @@ class TestFIXParser(unittest.TestCase):
     def test_nested_groups(self):
         """ Test the receiving of nested groups """
         parser = FIXParser(self.receiver,
-                           group_fields=[(100, [101, 102, 200]),
-                                         (200, [201, 202])],
+                           group_fields={100: [101, 102, 200],
+                                         200: [201, 202], },
                            header_fields=[8, 9])
 
         parser.on_data_received(to_fix('8=FIX.4.2',
@@ -361,7 +429,7 @@ class TestFIXParser(unittest.TestCase):
                                        '10=100'))
         self.assertEquals(1, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(4, len(message))
 
@@ -405,7 +473,7 @@ class TestFIXParser(unittest.TestCase):
         self.assertFalse(parser.is_parsing)
         self.assertEquals(2, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(5, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
@@ -431,7 +499,7 @@ class TestFIXParser(unittest.TestCase):
         self.assertFalse(parser.is_parsing)
         self.assertEquals(1, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(6, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
@@ -462,7 +530,7 @@ class TestFIXParser(unittest.TestCase):
 
         self.assertEquals(1, self.receiver.count)
 
-        message = self.last_received_message
+        message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         self.assertEquals(6, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
