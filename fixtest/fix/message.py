@@ -11,13 +11,13 @@ import struct
 from ..base.message import BasicMessage
 
 
-def checksum(data):
+def checksum(data, starting_checksum=0):
     """ Calculates the checksum of the message according to FIX.
 
         This does not do any filtering of the data, so do not
         calculate this with field 10 included.
     """
-    chksum = 0
+    chksum = starting_checksum
     for c in data:
         chksum = (chksum + struct.unpack('B', c)[0]) % 256
 
@@ -147,7 +147,7 @@ class FIXMessage(BasicMessage):
                 continue
 
             # Generate the binary without these fields
-            if k in [8, 9, 10]:
+            if k in {8, 9, 10}:
                 continue
 
             # write a field out, this may be a grouped value

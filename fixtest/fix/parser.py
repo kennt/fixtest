@@ -5,7 +5,7 @@
 
 """
 
-from ..fix.message import FIXMessage
+from ..fix.message import FIXMessage, checksum
 
 
 class FIXMessageParseError(ValueError):
@@ -20,6 +20,12 @@ class FIXMessageParseError(ValueError):
 
 class FIXMessageLengthExceededError(ValueError):
     """ Exception: FIX message too long. """
+    def __init__(self, message):
+        super(FIXMessageLengthExceededError, self).__init__()
+        self.message = message
+
+    def __str__(self):
+        return self.message
 
 
 class FIXParser(object):
@@ -82,14 +88,19 @@ class FIXParser(object):
         self.is_receiving_data = False
 
         self._message = FIXMessage(header_fields=self._header_fields)
+        self._checksum = 0
+        self._message_length = 0
 
-    def reset(self):
+    def reset(self, flush_buffer=False):
         """ Reset the protocol state so that it is ready to accept a
             new message.
         """
         self.is_parsing = False
-        self._buffer = b''
         self._message = FIXMessage(header_fields=self._header_fields)
+        self._checksum = 0
+        self._message_length = 0
+        if flush_buffer:
+            self._buffer = b''
 
     def _parse_field(self, buf):
         """ Parses the 'id=value' field.  id must be a number.
@@ -109,7 +120,7 @@ class FIXParser(object):
         try:
             tag_id = int(buf[:delim])
         except ValueError:
-            raise FIXMessageParseError('Incorrect format: ID must be a number')
+            raise FIXMessageParseError('Incorrect format: ID :' + buf[:delim])
 
         return (tag_id, buf[delim+1:])
 
@@ -124,6 +135,8 @@ class FIXParser(object):
                 data: The binary data that has been received.  This may
                     either be a binary string or a single byte ot data.
         """
+        # pylint: disable=too-many-branches
+
         if self.is_receiving_data is True:
             self._buffer += data
             return
@@ -152,15 +165,41 @@ class FIXParser(object):
                 elif not self.is_parsing:
                     raise FIXMessageParseError('message must start with tag 8')
 
+                # update the length
+                if tag_id not in {8, 9, 10}:
+                    self._message_length += len(field) + 1
+                if self._message_length >= self._max_length:
+                    raise FIXMessageLengthExceededError(
+                        'message too long: {0}'.format(self._message_length))
+
+                # update the checksum
+                if tag_id != 10:
+                    self._checksum = checksum(field, self._checksum) + 1
+
+                # is this a group field
+                # is this a binary field
+
+                # update the message
+                # print "tag{0} = {1}".format(tag_id, value)
                 self._message[tag_id] = value
 
                 # Is this the end of a message?
                 if tag_id == 10:
+                    # verify the length and checksum
+                    if self._message_length != int(self._message[9]):
+                        raise FIXMessageParseError(
+                            'length mismatch: calc {0} received {1}'.format(
+                                self._message_length, self._message[9]))
+                    if self._checksum != int(self._message[10]):
+                        raise FIXMessageParseError(
+                            'checksum mismatch: calc {0} received {1}'.format(
+                                self._checksum, self._message[10]))
+
                     self._receiver.on_message_received(self._message)
                     self.reset()
 
         except FIXMessageParseError, err:
-            self.reset()
+            self.reset(flush_buffer=True)
             self._receiver.on_error_received(err)
         finally:
             self.is_receiving_data = False
