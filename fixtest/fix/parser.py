@@ -29,19 +29,32 @@ class FIXParser(object):
         validation (length checking, checksum verification, etc..).
         Heartbeat/TestRequest processing are not performed here.
 
+        The parser does not implement any timeout.  It is up to the
+        protocol to determine if we are stuck in the middle of
+        receiving a message.  If the parser is middle of receiving a
+        message, the is_parsing attribute is set to True.
+
         Attributes:
+            is_parsing: This is set to True if we are currently awaiting
+                further data, in other words we have received a partial
+                message.
+            is_receiving_data: This is set to True if we are in the middle of
+                processing a current buffer.
     """
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, on_message, on_error, **kwargs):
+    def __init__(self, receiver, **kwargs):
         """ FIXParser initialization
 
             Args:
-                on_message: A callback.  This function is called when a
-                    full message has been received.
-                on_error: A callback.  This function is called when an error
-                    has been detected while processing data.
-                header_fields: A list of header tags.
+                receiver: This is an observer that receives the message and
+                    error notifications from the parser.  There are two
+                    callbacks:
+                        on_message_received(message)
+                        on_error_received(error)
+                header_fields: A list of header tags.  This only affects
+                    the sending of the message. The order of the input
+                    fields is not validated.
                 binary_fields: A list of tags indicating binary fields.
                     Note that binary fields come in pairs.  The first
                     field contains the length of the data and the second
@@ -54,22 +67,24 @@ class FIXParser(object):
                 max_length: Maximum length of a FIX message supported
                     (Default: 2048).
         """
-        self._on_message = on_message
-        self._on_error = on_error
+        self.is_parsing = False
+
+        self._receiver = receiver
         self._header_fields = kwargs.get('header_fields', [8, 9, 35, 49, 56])
         self._binary_fields = kwargs.get('binary_fields', list())
         self._group_fields = kwargs.get('group_fields', list())
         self._max_length = kwargs.get('max_length', 2048)
 
         self._buffer = b''
-        self._receiving_data = False
+        self.is_receiving_data = False
 
     def reset(self):
         """ Reset the protocol state so that it is ready to accept a
             new message.
         """
+        self.is_parsing = False
         self._buffer = b''
-        self._receiving_data = False
+        self.is_receiving_data = False
 
     def on_data_received(self, data):
         """ Passes data to the parser.
@@ -79,15 +94,16 @@ class FIXParser(object):
             called.
 
             Args:
-                data: The binary data that has been received.
+                data: The binary data that has been received.  This may
+                    either be a binary string or a single byte ot data.
         """
-        if self._receiving_data is True:
+        if self.is_receiving_data is True:
             self._buffer += data
             return
 
         try:
-            self._receiving_data = True
+            self.is_receiving_data = True
             self._buffer += data
 
         finally:
-            self._receiving_data = False
+            self.is_receiving_data = False

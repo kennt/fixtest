@@ -48,5 +48,7 @@ class BasicMessage(collections.MutableMapping):
         return len(self.store)
 
     def __keytransform__(self, key):
+        """ Override this to enforce the type of key expected.
+        """
         # pylint: disable=no-self-use
         return str(key)

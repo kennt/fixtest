@@ -27,12 +27,7 @@ def checksum(data):
 def _single_field(tag, value):
     """ Returns a string in the form of "tag=value\x01"
     """
-    # Note that we are filtering out non-numeric characters from
-    # the tags.  For nested groups, we append on non-numeric
-    # characters to disambiguate the tags (we are using a dict() to
-    # store the fields).
-    return (''.join([c for c in str(tag) if c.isdigit()]) +
-            '=' + str(value) + b'\x01')
+    return str(tag) + '=' + str(value) + b'\x01'
 
 
 def _write_single_field(output, tag, value):
@@ -74,6 +69,9 @@ class FIXMessage(BasicMessage):
         Note that FIX requires a specific field ordering.  This class
         provides support for FIX-like protocols, but not necessarily
         for a specific version.
+
+        A FIX field is composed of (tag, value) pairs.  A tag is a
+        numeric positive integer field.  The value is a string.
     """
 
     def __init__(self, **kwargs):
@@ -89,6 +87,8 @@ class FIXMessage(BasicMessage):
                     35 = MsgType
                     49 = SenderCompID
                     56 = TargetCompID
+                    This setting only affects to_binary(), the input order
+                    is not validated here.
         """
         super(FIXMessage, self).__init__()
 
@@ -99,6 +99,14 @@ class FIXMessage(BasicMessage):
 
         if 'source' in kwargs:
             self.update(kwargs['source'])
+
+    def __keytransform__(self, key):
+        """ Override this to enforce the type of key expected.
+
+            FIX only expects purely numeric keys.
+        """
+        # pylint: disable=no-self-use
+        return int(key)
 
     def msg_type(self):
         """ Returns the MessageType field (tag 35) of the message.
@@ -125,9 +133,9 @@ class FIXMessage(BasicMessage):
                 A binary string containing the message in the
                 FIX on-the-wire format.
         """
-        includes = {str(k): True for k in kwargs['include']} \
+        includes = {int(k): True for k in kwargs['include']} \
             if 'include' in kwargs else None
-        excludes = {str(k): True for k in kwargs['exclude']} \
+        excludes = {int(k): True for k in kwargs['exclude']} \
             if 'exclude' in kwargs else None
 
         output = StringIO()
@@ -139,7 +147,7 @@ class FIXMessage(BasicMessage):
                 continue
 
             # Generate the binary without these fields
-            if k in ['8', '9', '10']:
+            if k in [8, 9, 10]:
                 continue
 
             # write a field out, this may be a grouped value
@@ -149,7 +157,7 @@ class FIXMessage(BasicMessage):
 
         # prepend 8 (BeginString) and 9 (BodyLength)
         # Note that 8 and 9 are the minimal set of required fields
-        self[9] = len(mess)
+        self[9] = str(len(mess))
         mess = _single_field(8, self[8]) + _single_field(9, self[9]) + mess
 
         # calc and append the 10 (CheckSum)

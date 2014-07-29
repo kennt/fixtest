@@ -49,8 +49,8 @@ class TestFIXMessage(unittest.TestCase):
 
         items = [(k, v) for k, v in mess.items()]
         # 8,9 are required to be first and second fields, respectively
-        self.assertEquals('8', items[0][0])
-        self.assertEquals('9', items[1][0])
+        self.assertEquals(8, items[0][0])
+        self.assertEquals(9, items[1][0])
 
         # Custom required fields
         mess = FIXMessage(header_fields=[1024, 8, 9])
@@ -60,9 +60,9 @@ class TestFIXMessage(unittest.TestCase):
         self.assertTrue(1024 in mess)
 
         items = [(k, v) for k, v in mess.items()]
-        self.assertEquals('1024', items[0][0])
-        self.assertEquals('8', items[1][0])
-        self.assertEquals('9', items[2][0])
+        self.assertEquals(1024, items[0][0])
+        self.assertEquals(8, items[1][0])
+        self.assertEquals(9, items[2][0])
 
     def test_msg_type(self):
         mess = FIXMessage()
@@ -90,7 +90,7 @@ class TestFIXMessage(unittest.TestCase):
 
         # BodyLength(9) and Checksum(10) should be updated after
         # the to_binary() was called.
-        self.assertEquals(65, mess[9])
+        self.assertEquals('65', mess[9])
         self.assertEquals('062', mess[10])
 
         self.assertEquals(to_fix('8=FIX.4.2',

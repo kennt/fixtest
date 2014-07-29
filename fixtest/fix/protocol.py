@@ -81,8 +81,7 @@ class FIXProtocol(protocol.Protocol):
         self.link_config = kwargs.get('link_config', dict())
         self._debug = kwargs.get('debug')
 
-        self.parser = FIXParser(self.on_message_received,
-                                self.on_error_received,
+        self.parser = FIXParser(self,
                                 binary_fields=self.link_config.get(
                                     'binary_fields', None),
                                 group_fields=self.link_config.get(
