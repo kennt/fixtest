@@ -105,7 +105,6 @@ class FIXParser(object):
 
         # used for groups processing
         self._level_stack = list()
-        self._level = None
 
         self._logger = logging.getLogger(__name__)
 
@@ -124,7 +123,6 @@ class FIXParser(object):
 
         # used for groups processing
         self._level_stack = list()
-        self._level = None
 
         if flush_buffer:
             self._buffer = b''
@@ -192,7 +190,7 @@ class FIXParser(object):
             self._binary_tag = 0
             self._binary_length = -1
 
-    def _update_field(self, field, tag_id, value):
+    def _update_field(self, tag_id, value):
         """ Update the value of the field
 
             Need to change the level of the container due to the
@@ -201,47 +199,48 @@ class FIXParser(object):
         if tag_id in self._group_fields:
             # start a new level, an individual group doesn't
             # exist since we haven't read any information in yet.
-            self._level = {
+            self._level_stack.append({
                 'tag_id': tag_id,
                 'list': list(),
-                'group': None
-            }
-            self._level_stack.append(self._level)
+                'group': None,
+                })
 
-        elif self._level is None:
+        elif len(self._level_stack) == 0:
             # We are at the top of the message
             self._message[tag_id] = value
 
-        elif tag_id in self._group_fields[self._level['tag_id']]:
+        elif tag_id in self._group_fields[self._level_stack[-1]['tag_id']]:
             # We are within a group and the field is in the list of tags
             # for this group
-            if (self._level['group'] is None or
-                    tag_id in self._level['group']):
+            level = self._level_stack[-1]
+            group = level['group']
+            if group is None or tag_id in group:
                 # Create a new group if there is no current group
                 # or if this key already exists within the group
-                self._level['group'] = collections.OrderedDict()
-                self._level['list'].append(self._level['group'])
-            self._level['group'][tag_id] = value
+                group = collections.OrderedDict()
+                level['list'].append(group)
+                level['group'] = group
+            group[tag_id] = value
 
         else:
             # we are in a grouping, but we have a tag_id that doesn't
             # belong, so need to pop the stack off
-            self._level_stack.pop()  # this is the current level
+            level = self._level_stack.pop()  # this is the current level
 
             while len(self._level_stack) > 0:
                 # Add the current group to it's parent grouping
-                parent_level = self._level_stack.pop()
-                parent_level['group'][self._level['tag_id']] = \
-                    self._level['list']
+                parent_level = self._level_stack[-1]
+                parent_level['group'][level['tag_id']] = level['list']
 
-                self._level = parent_level
-                if tag_id in self._group_fields[self._level['tag_id']]:
+                level = parent_level
+                if tag_id in self._group_fields[level['tag_id']]:
                     break
+                self._level_stack.pop()
 
             if len(self._level_stack) == 0:
-                self._message[self._level['tag_id']] = self._level['list']
-                self._level = None
-            self._update_field(field, tag_id, value)
+                self._message[level['tag_id']] = level['list']
+
+            self._update_field(tag_id, value)
 
     def on_data_received(self, data):
         """ Passes data to the parser.
@@ -312,7 +311,7 @@ class FIXParser(object):
                 # the container where the update takes place gets
                 # changed
                 # self._message[tag_id] = value
-                self._update_field(field, tag_id, value)
+                self._update_field(tag_id, value)
 
                 # Is this the end of a message?
                 if tag_id == 10:
