@@ -5,6 +5,9 @@
 
 """
 
+import logging
+
+from ..base.utils import log_text
 from ..fix.message import FIXMessage, checksum
 
 
@@ -95,6 +98,8 @@ class FIXParser(object):
         self._binary_length = -1
         self._binary_tag = 0
 
+        self._logger = logging.getLogger(__name__)
+
     def reset(self, flush_buffer=False):
         """ Reset the protocol state so that it is ready to accept a
             new message.
@@ -130,6 +135,55 @@ class FIXParser(object):
 
         return (tag_id, buf[delim+1:])
 
+    def _update_length(self, field, tag_id, value):
+        """ Update the message length calculations """
+        # pylint: disable=unused-argument
+        if tag_id not in {8, 9, 10}:
+            self._message_length += len(field) + 1
+        if self._message_length >= self._max_length:
+            raise FIXMessageLengthExceededError(
+                'message too long: {0}'.format(self._message_length))
+
+    def _update_checksum(self, field, tag_id, value):
+        """ Update the message checksum calculations """
+        # pylint: disable=unused-argument
+        if tag_id != 10:
+            self._checksum = checksum(field, self._checksum) + 1
+
+    def _update_binary(self, field, tag_id, value):
+        """ Update the binary field processing internals """
+        # Are we processing a binary tag?
+        if self._binary_tag == 0:
+            if tag_id in self._binary_fields:
+                self._binary_length = len(str(tag_id + 1)) + int(value)
+                if self._binary_length > self._max_length:
+                    raise FIXMessageLengthExceededError(
+                        'binary field too long: {0}'.format(
+                            self._binary_length))
+                self._binary_tag = tag_id
+            else:
+                self._binary_length = -1
+        else:
+            # Is this the wrong tag?
+            if tag_id != (self._binary_tag + 1):
+                raise FIXMessageParseError(
+                    'expected binary tag {0} found {1}'.format(
+                        self._binary_tag + 1, tag_id))
+            if len(field) != self._binary_length + 1:
+                raise FIXMessageParseError(
+                    'binary length: expected {0} found {1}'.format(
+                        self._binary_length + 1, len(field)))
+            self._binary_tag = 0
+            self._binary_length = -1
+
+    def _update_field(self, field, tag_id, value):
+        """ Update the value of the field
+
+            Need to change the level of the container due to the
+            grouping aspects.
+        """
+        self._message[tag_id] = value
+
     def on_data_received(self, data):
         """ Passes data to the parser.
 
@@ -155,9 +209,14 @@ class FIXParser(object):
             # We start processing only once we have an entire field
             # (e.g. 'id=value') in the buffer, otherwise wait for more
             # data.
-            # The problem with this approach is that if there is a
+            # The problem with the current approach is that if there is a
             # binary field with an incorrect length, we may read past
             # the end of the message.
+            # BUGBUG: Need to fix this. A quick hack may be to
+            # try to peek to see what the tag id is and do something
+            # with that.  On the other hand this may just be a problem
+            # with the protocol (should probably specify a maximum
+            # allowable length of a binary field as a sanity check)
             while (len(self._buffer) > 0 and
                     self._buffer.find(b'\x01', self._binary_length + 1) != -1):
 
@@ -182,42 +241,19 @@ class FIXParser(object):
                 elif not self.is_parsing:
                     raise FIXMessageParseError('message must start with tag 8')
 
-                # update the length
-                if tag_id not in {8, 9, 10}:
-                    self._message_length += len(field) + 1
-                if self._message_length >= self._max_length:
-                    raise FIXMessageLengthExceededError(
-                        'message too long: {0}'.format(self._message_length))
-
-                # update the checksum
-                if tag_id != 10:
-                    self._checksum = checksum(field, self._checksum) + 1
-
-                # is this a group field
-
-                # update the message
                 if self._debug:
-                    print "tag {0} = {1}".format(tag_id, repr(value))
-                self._message[tag_id] = value
+                    log_text(self._logger.debug, None,
+                             "tag {0} = {1}".format(tag_id, repr(value)))
 
-                if self._binary_tag == 0:
-                    if tag_id in self._binary_fields:
-                        self._binary_length = len(str(tag_id + 1)) + int(value)
-                        self._binary_tag = tag_id
-                    else:
-                        self._binary_length = -1
-                else:
-                    # Is this the wrong tag?
-                    if tag_id != (self._binary_tag + 1):
-                        raise FIXMessageParseError(
-                            'expected binary tag {0} found {1}'.format(
-                                self._binary_tag + 1, tag_id))
-                    if len(field) != self._binary_length + 1:
-                        raise FIXMessageParseError(
-                            'binary length: expected {0} found {1}'.format(
-                                self._binary_length + 1, len(field)))
-                    self._binary_tag = 0
-                    self._binary_length = -1
+                self._update_length(field, tag_id, value)
+                self._update_checksum(field, tag_id, value)
+                self._update_binary(field, tag_id, value)
+
+                # The tag value gets assigned here. Due to grouping
+                # the container where the update takes place gets
+                # changed
+                # self._message[tag_id] = value
+                self._update_field(field, tag_id, value)
 
                 # Is this the end of a message?
                 if tag_id == 10:
@@ -233,8 +269,6 @@ class FIXParser(object):
 
                     self._receiver.on_message_received(self._message)
                     self.reset()
-                # else:
-                    # Is this the data part of a binary tag?
 
         except FIXMessageLengthExceededError, err:
             self.reset(flush_buffer=True)

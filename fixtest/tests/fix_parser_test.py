@@ -53,21 +53,20 @@ class TestFIXParserInternals(unittest.TestCase):
         parser = FIXParser(self.receiver)
 
         # missing '='
-        self.assertRaises(FIXMessageParseError,
-                          parser._parse_field,
-                          'abcde')
+        with self.assertRaises(FIXMessageParseError):
+            parser._parse_field('abcde')
+
         # bad tag id
-        self.assertRaises(FIXMessageParseError,
-                          parser._parse_field,
-                          'a=a')
+        with self.assertRaises(FIXMessageParseError):
+            parser._parse_field('a=a')
+
         # missing tag id
-        self.assertRaises(FIXMessageParseError,
-                          parser._parse_field,
-                          '=a')
+        with self.assertRaises(FIXMessageParseError):
+            parser._parse_field('=a')
+
         # bad tag id
-        self.assertRaises(FIXMessageParseError,
-                          parser._parse_field,
-                          '10b=a')
+        with self.assertRaises(FIXMessageParseError):
+            parser._parse_field('10b=a')
 
 
 class TestFIXParser(unittest.TestCase):
@@ -116,22 +115,20 @@ class TestFIXParser(unittest.TestCase):
                            header_fields=[8, 9])
 
         # message does not start with tag 8
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('18=FIX.4.2',
-                                 '9=32',
-                                 '8=FIX.4.2',
-                                 '35=A',
-                                 '10=100'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('18=FIX.4.2',
+                                           '9=32',
+                                           '8=FIX.4.2',
+                                           '35=A',
+                                           '10=100'))
 
         # unexpected tag 8
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 '8=abcdef',
-                                 '35=A',
-                                 '10=100'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           '8=abcdef',
+                                           '35=A',
+                                           '10=100'))
 
     def test_partial_message(self):
         """ Test for partial input. """
@@ -152,25 +149,22 @@ class TestFIXParser(unittest.TestCase):
                            header_fields=[8, 9])
 
         # Tag ID is not a number
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 'abcd=A'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           'abcd=A'))
 
         # Missing '=' and value portion
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4',
-                                 '9=32',
-                                 '35'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4',
+                                           '9=32',
+                                           '35'))
 
         # Missing tag ID portion
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4',
-                                 '9=32',
-                                 '=A'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4',
+                                           '9=32',
+                                           '=A'))
 
     def test_message_too_large(self):
         """ Test for too long message """
@@ -178,11 +172,10 @@ class TestFIXParser(unittest.TestCase):
                            header_fields=[8, 9],
                            max_length=100)
 
-        self.assertRaises(FIXMessageLengthExceededError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 '42=A' + 'BB'*100))
+        with self.assertRaises(FIXMessageLengthExceededError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           '42=A' + 'BB'*100))
 
     def test_message_bad_checksum(self):
         """ Test for message with a bad checksum """
@@ -190,12 +183,11 @@ class TestFIXParser(unittest.TestCase):
                            header_fields=[8, 9],
                            max_length=100)
 
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 '42=A',
-                                 '10=000'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           '42=A',
+                                           '10=000'))
 
     def test_message_bad_binary_length(self):
         """ Test for message with missing binary data """
@@ -205,14 +197,13 @@ class TestFIXParser(unittest.TestCase):
                            max_length=100)
 
         # length too short
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 '42=A',
-                                 '1000=2',
-                                 '1001=abababababab',
-                                 '10=000'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           '42=A',
+                                           '1000=2',
+                                           '1001=abababababab',
+                                           '10=000'))
 
         # length too long
         # This will not raise an error
@@ -230,6 +221,22 @@ class TestFIXParser(unittest.TestCase):
         # operation should time out, but that is not the responsibility of
         # the parser.
 
+    def test_message_binary_too_long(self):
+        """ Test for message with missing binary data """
+        parser = FIXParser(self.receiver,
+                           header_fields=[8, 9],
+                           binary_fields=[1000],
+                           max_length=100)
+
+        # length too short
+        with self.assertRaises(FIXMessageLengthExceededError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           '42=A',
+                                           '1000=128',
+                                           '1001=abababababab',
+                                           '10=000'))
+
     def test_parser_reset(self):
         """ Test that the parser resets on an error """
         parser = FIXParser(self.receiver,
@@ -237,11 +244,10 @@ class TestFIXParser(unittest.TestCase):
 
         # Tag ID is not a number
         self.assertFalse(parser.is_parsing)
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 'abcd=A'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           'abcd=A'))
         self.assertFalse(parser.is_parsing)
 
     def test_bad_binary_fields(self):
@@ -256,23 +262,21 @@ class TestFIXParser(unittest.TestCase):
         # field has been read in.  Which this will fail because
         # the length goes past the end of the message.
         # For now, live with this.
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 '1000=5',
-                                 '999=11',
-                                 '10=001'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           '1000=5',
+                                           '999=11',
+                                           '10=001'))
 
         # Missing binary length portion (the only time this
         # really impacts something is if the field has an
         # embedded \x01).
-        self.assertRaises(FIXMessageParseError,
-                          parser.on_data_received,
-                          to_fix('8=FIX.4.2',
-                                 '9=32',
-                                 '1001=1010\x011010',
-                                 '10=001'))
+        with self.assertRaises(FIXMessageParseError):
+            parser.on_data_received(to_fix('8=FIX.4.2',
+                                           '9=32',
+                                           '1001=1010\x011010',
+                                           '10=001'))
 
         parser.on_data_received(to_fix('8=FIX.4.2',
                                        '9=14',
@@ -543,3 +547,33 @@ class TestFIXParser(unittest.TestCase):
                                                (919, 'this'),
                                                (955, 'that'),
                                                (10, '198')]))
+
+    def test_grouped_binary_fields(self):
+        """ Test binary fields that are in a group. """
+        parser = FIXParser(self.receiver,
+                           group_fields={200: [201, 202, 99]},
+                           binary_fields=[99],
+                           header_fields=[8, 9])
+
+        text = to_fix('8=FIX.4.2',
+                      '9=80',
+                      '35=A',
+                      '200=2',
+                      '201=aabc',
+                      '99=5',
+                      '100=abcde',
+                      '201=zzzaa',
+                      '202=myname',
+                      '99=5',
+                      '100=zztop',
+                      '955=that',
+                      '10=201')
+        parser.on_data_received(text)
+        self.assertFalse(parser.is_parsing)
+
+        self.assertEquals(1, self.receiver.count)
+
+        message = self.receiver.last_received_message
+        self.assertIsNotNone(message)
+        self.assertEquals(6, len(message))
+        self.assertEquals(2, len(message[200]))

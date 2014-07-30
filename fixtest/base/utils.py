@@ -5,7 +5,21 @@
 
 """
 
+import collections
 import datetime
+
+
+def flatten(container):
+    """ Creates a list of tuples (k, v) from a dictionary
+    """
+    items = list()
+    for k, v in container.items():
+        if isinstance(v, collections.MutableMapping):
+            items.append((k, len(v)))
+            items.extend(flatten(v))
+        else:
+            items.append((k, v))
+    return items
 
 
 def current_timestamp():
@@ -13,9 +27,15 @@ def current_timestamp():
     return datetime.datetime.now().strftime("%H:%M:%S.%f")
 
 
-def log_text(log, name, text):
-    """Write out the name/text to the specified log object"""
-    if name is None:
-        return log("{0}: {1}".format(current_timestamp(), text))
+def format_log_line(header, text):
+    """ Formats a single of line of text given a header and some textself.
+    """
+    if header is None:
+        return "{0}: {1}".format(current_timestamp(), text)
     else:
-        return log("{0}: {1}: {2}".format(current_timestamp(), name, text))
+        return "{0}: {1}: {2}".format(current_timestamp(), header, text)
+
+
+def log_text(log, header, text):
+    """Write out the name/text to the specified log object"""
+    log(format_log_line(header, text))
