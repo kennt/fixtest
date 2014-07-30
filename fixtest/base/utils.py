@@ -5,21 +5,7 @@
 
 """
 
-import collections
 import datetime
-
-
-def flatten(container):
-    """ Creates a list of tuples (k, v) from a dictionary
-    """
-    items = list()
-    for k, v in container.items():
-        if isinstance(v, collections.MutableMapping):
-            items.append((k, len(v)))
-            items.extend(flatten(v))
-        else:
-            items.append((k, v))
-    return items
 
 
 def current_timestamp():
@@ -28,7 +14,7 @@ def current_timestamp():
 
 
 def format_log_line(header, text):
-    """ Formats a single of line of text given a header and some textself.
+    """ Formats a single of line of text given a header and some text.
     """
     if header is None:
         return "{0}: {1}".format(current_timestamp(), text)

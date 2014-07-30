@@ -5,6 +5,7 @@
 
 """
 
+import collections
 import logging
 
 from ..base.utils import log_text
@@ -75,7 +76,9 @@ class FIXParser(object):
                     only the first field should be included in this list.
                 group_fields: A dictionary of fields that belong to a group.
                     The key is the group ID field that maps to a list of
-                    IDs that belong to the group.
+                    IDs that belong to the group.  When specifying the
+                    field list for a group, include BOTH fields of a
+                    binary field.
                 max_length: Maximum length of a FIX message supported
                     (Default: 2048).
                 debug: Set to True for more debugging output
@@ -95,8 +98,14 @@ class FIXParser(object):
         self._message = FIXMessage(header_fields=self._header_fields)
         self._checksum = 0
         self._message_length = 0
+
+        # used for binary field processing
         self._binary_length = -1
         self._binary_tag = 0
+
+        # used for groups processing
+        self._level_stack = list()
+        self._level = None
 
         self._logger = logging.getLogger(__name__)
 
@@ -108,8 +117,15 @@ class FIXParser(object):
         self._message = FIXMessage(header_fields=self._header_fields)
         self._checksum = 0
         self._message_length = 0
+
+        # used for binary field processing
         self._binary_length = -1
         self._binary_tag = 0
+
+        # used for groups processing
+        self._level_stack = list()
+        self._level = None
+
         if flush_buffer:
             self._buffer = b''
 
@@ -182,7 +198,50 @@ class FIXParser(object):
             Need to change the level of the container due to the
             grouping aspects.
         """
-        self._message[tag_id] = value
+        if tag_id in self._group_fields:
+            # start a new level, an individual group doesn't
+            # exist since we haven't read any information in yet.
+            self._level = {
+                'tag_id': tag_id,
+                'list': list(),
+                'group': None
+            }
+            self._level_stack.append(self._level)
+
+        elif self._level is None:
+            # We are at the top of the message
+            self._message[tag_id] = value
+
+        elif tag_id in self._group_fields[self._level['tag_id']]:
+            # We are within a group and the field is in the list of tags
+            # for this group
+            if (self._level['group'] is None or
+                    tag_id in self._level['group']):
+                # Create a new group if there is no current group
+                # or if this key already exists within the group
+                self._level['group'] = collections.OrderedDict()
+                self._level['list'].append(self._level['group'])
+            self._level['group'][tag_id] = value
+
+        else:
+            # we are in a grouping, but we have a tag_id that doesn't
+            # belong, so need to pop the stack off
+            self._level_stack.pop()  # this is the current level
+
+            while len(self._level_stack) > 0:
+                # Add the current group to it's parent grouping
+                parent_level = self._level_stack.pop()
+                parent_level['group'][self._level['tag_id']] = \
+                    self._level['list']
+
+                self._level = parent_level
+                if tag_id in self._group_fields[self._level['tag_id']]:
+                    break
+
+            if len(self._level_stack) == 0:
+                self._message[self._level['tag_id']] = self._level['list']
+                self._level = None
+            self._update_field(field, tag_id, value)
 
     def on_data_received(self, data):
         """ Passes data to the parser.
@@ -261,7 +320,7 @@ class FIXParser(object):
                     if self._message_length != int(self._message[9]):
                         raise FIXMessageParseError(
                             'length mismatch: calc {0} received {1}'.format(
-                                self._message_length, self._message[9]))
+                                self._message_length, int(self._message[9])))
                     if self._checksum != int(self._message[10]):
                         raise FIXMessageParseError(
                             'checksum mismatch: calc {0} received {1}'.format(

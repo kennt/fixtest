@@ -5,8 +5,27 @@
 
 """
 
-from ..base.utils import format_log_line, flatten
+import collections
+
+from ..base.utils import format_log_line
 from ..fix.constants import FIX
+
+
+def flatten(container):
+    """ Creates a list of tuples (k, v) from a dictionary
+
+        This is FIX specific.  If a key maps to a container, say
+        (k: v) where v is another dict(), then the item (k, len(v))
+        is added to the list of items.
+    """
+    items = list()
+    for k, v in container.items():
+        if isinstance(v, collections.MutableMapping):
+            items.append((k, len(v)))
+            items.extend(flatten(v))
+        else:
+            items.append((k, v))
+    return items
 
 
 def format_message(message):

@@ -365,7 +365,7 @@ class TestFIXParser(unittest.TestCase):
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(6, len(message))
+        self.assertEquals(4, len(message))
 
         self.assertTrue(100 in message)
         self.assertEquals(1, len(message[100]))
@@ -400,7 +400,7 @@ class TestFIXParser(unittest.TestCase):
         self.assertIsNotNone(message)
         self.assertEquals(4, len(message))
 
-        self.assertIsTrue(100 in message)
+        self.assertTrue(100 in message)
         self.assertEquals(2, len(message[100]))
 
         group = message[100]
@@ -420,6 +420,7 @@ class TestFIXParser(unittest.TestCase):
     def test_nested_groups(self):
         """ Test the receiving of nested groups """
         parser = FIXParser(self.receiver,
+                           debug=True,
                            group_fields={100: [101, 102, 200],
                                          200: [201, 202], },
                            header_fields=[8, 9])
@@ -439,7 +440,7 @@ class TestFIXParser(unittest.TestCase):
         self.assertIsNotNone(message)
         self.assertEquals(4, len(message))
 
-        self.assertIsTrue(100 in message)
+        self.assertTrue(100 in message)
         self.assertEquals(1, len(message[100]))
 
         group = message[100]
@@ -454,12 +455,14 @@ class TestFIXParser(unittest.TestCase):
 
         subgroup = group[0]
         self.assertIsNotNone(subgroup)
-        self.assertEquals(1, len(subgroup))
-        self.assertEquals(2, len(subgroup[0]))
-        self.assertTrue(201 in subgroup[0])
-        self.assertTrue(202 in subgroup[0])
-        self.assertEquals('abc', subgroup[0][201])
-        self.assertEquals('def', subgroup[0][202])
+        self.assertEquals(3, len(subgroup))
+        self.assertEquals(1, len(subgroup[200]))
+        subgroup200 = subgroup[200]
+        self.assertEquals(2, len(subgroup200[0]))
+        self.assertTrue(201 in subgroup200[0])
+        self.assertTrue(202 in subgroup200[0])
+        self.assertEquals('abc', subgroup200[0][201])
+        self.assertEquals('def', subgroup200[0][202])
 
     def test_multiple_message(self):
         """ Receive two messages in one data buffer """
@@ -551,7 +554,8 @@ class TestFIXParser(unittest.TestCase):
     def test_grouped_binary_fields(self):
         """ Test binary fields that are in a group. """
         parser = FIXParser(self.receiver,
-                           group_fields={200: [201, 202, 99]},
+                           debug=True,
+                           group_fields={200: [201, 202, 99, 100]},
                            binary_fields=[99],
                            header_fields=[8, 9])
 
@@ -574,6 +578,81 @@ class TestFIXParser(unittest.TestCase):
         self.assertEquals(1, self.receiver.count)
 
         message = self.receiver.last_received_message
+        print message.store
         self.assertIsNotNone(message)
         self.assertEquals(6, len(message))
         self.assertEquals(2, len(message[200]))
+        self.assertTrue(200 in message)
+        self.assertTrue(955 in message)
+        subgroup = message[200][0]
+        self.assertEquals(3, len(subgroup))
+        self.assertTrue(201 in subgroup)
+        self.assertTrue(99 in subgroup)
+        self.assertTrue(100 in subgroup)
+        subgroup = message[200][1]
+        self.assertEquals(4, len(subgroup))
+        self.assertTrue(201 in subgroup)
+        self.assertTrue(202 in subgroup)
+        self.assertTrue(99 in subgroup)
+        self.assertTrue(100 in subgroup)
+
+    def test_multiple_nested_groups(self):
+        """ Test the receiving of multiple nested groups """
+        parser = FIXParser(self.receiver,
+                           debug=True,
+                           group_fields={100: [101, 102, 200],
+                                         200: [201, 202], },
+                           header_fields=[8, 9])
+
+        parser.on_data_received(to_fix('8=FIX.4.2',
+                                       '9=60',
+                                       '100=2',
+                                       '101=a',
+                                       '102=b',
+                                       '200=2',
+                                       '201=abc',
+                                       '202=def',
+                                       '201=zzz',
+                                       '101=c',
+                                       '102=d',
+                                       '10=002'))
+        self.assertEquals(1, self.receiver.count)
+
+        message = self.receiver.last_received_message
+        print message.store
+        self.assertIsNotNone(message)
+        self.assertEquals(4, len(message))
+
+        self.assertTrue(100 in message)
+        self.assertEquals(2, len(message[100]))
+
+        group = message[100]
+        self.assertIsNotNone(group)
+        self.assertEquals(2, len(group))
+        self.assertEquals(3, len(group[0]))
+        self.assertTrue(101 in group[0])
+        self.assertTrue(102 in group[0])
+        self.assertTrue(200 in group[0])
+        self.assertEquals('a', group[0][101])
+        self.assertEquals('b', group[0][102])
+        self.assertEquals(2, len(group[1]))
+        self.assertTrue(101 in group[1])
+        self.assertTrue(102 in group[1])
+        self.assertTrue(200 not in group[1])
+        self.assertEquals('c', group[1][101])
+        self.assertEquals('d', group[1][102])
+
+        subgroup = group[0]
+        self.assertIsNotNone(subgroup)
+        self.assertEquals(3, len(subgroup))
+        self.assertEquals(2, len(subgroup[200]))
+        subgroup200 = subgroup[200]
+        self.assertEquals(2, len(subgroup200[0]))
+        self.assertTrue(201 in subgroup200[0])
+        self.assertTrue(202 in subgroup200[0])
+        self.assertEquals('abc', subgroup200[0][201])
+        self.assertEquals('def', subgroup200[0][202])
+        self.assertEquals(1, len(subgroup200[1]))
+        self.assertTrue(201 in subgroup200[1])
+        self.assertTrue(202 not in subgroup200[1])
+        self.assertEquals('zzz', subgroup200[1][201])
