@@ -7,65 +7,52 @@
 """
 
 import logging
-from twisted.internet import protocol, reactor
 
-from base.utils import log_text
-from fix.parser import FIXParser
+# from base.utils import log_text
+from ..fix.parser import FIXParser
 
 
-class FIXProtocol(protocol.Protocol):
-    """ Implements the transport interface.  Instead of dealing directly
+class FIXDataError(ValueError):
+    """ Exception: Problem found with the data in the message. """
+    def __init__(self, refid, message):
+        super(FIXDataError, self).__init__()
+        self.reference_id = refid
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
+class FIXProtocol(object):
+    """ Implements the protocol interface.  Instead of dealing directly
         with byte streams, we now deal with Messages.  This layer is
-        also responsible for hiding some of the lower level details, such
-        as Heartbeat/TestRequest processing.
+        responsible for most of the administration level logic, such as
+        handling of heartbeats/TestRequests.  This class will also
+        handle tracking of certain appliction counters, such as
+        message sequence numbers.
 
         Attributes:
                 name: A descriptive name given to this connection.
-                parser: References an implementation for the parser.
-                queue: This is the message queue associated with this
-                    connection.
+                transport: The transport interface for this connection.
                 config: A dict() for the endpoint configuration.
+                    See the ROLES section in sample_config.py for examples.
                 link_config: A dict for the link configuration.
-                    protocol_version:  This is the FIX version that is
-                        sent and is expected in the BeginString(8).
-                    sender_compid: The sender endpoint ID.
-                    target_compid: The target endpoint ID.
-                    heartbeat: The heartbeat interval (in secs).  IF this
-                        is set to -1, then the heartbeat is not sent.
-                    send_msg_seqno: This is the starting seqno.
-                    orderid_no: This is the starting order no.
+                    See the CONNECTIONS section in sample_config.py for
+                    examples and documentation.
                 debug: Set this to True for debug logging.  (Default: False)
     """
-    def __init__(self, name, queue, **kwargs):
+    def __init__(self, name, transport, **kwargs):
         """ FIXProtocol initialization
 
             Args:
                 name: A descriptive name given to this connection.
-                queue: This is the message queue associated with this
-                    connection.
+                transport: The transport used to interface with the
+                    networking layer.
                 config: A dict() for the endpoint configuration.
+                    See the ROLES section in sample_config.py for examples.
                 link_config: A dict for the link configuration.
-                    protocol_version:  This is the FIX version that is
-                        sent and is expected in the BeginString(8).
-                    sender_compid: The sender endpoint ID.
-                    target_compid: The target endpoint ID.
-                    heartbeat: The heartbeat interval (in secs).  IF this
-                        is set to -1, then the heartbeat is not sent.
-                    send_msg_seqno: This is the starting seqno.
-                    orderid_no: This is the starting order no.
-                    binary_fields: The list of FIX binary fields supported
-                        or needed by this link (Default: None).
-                        Note that binary fields come in pairs.  The first
-                        field contains the length of the data and the second
-                        field contains the actual data.  The convention is that
-                        the IDs are sequential.  For example, if the length
-                        field is tag 123, then tag 124 contains the data.
-                        Note that only the first field should be included
-                        in this list.
-                    group_fields: A dictionary of fields that belong
-                        to a group. The key is the group ID field that maps
-                        to a list of IDs that belong to the group.
-                    max_length: The maximum length of message (Default: 2048)
+                    See the CONNECTIONS section in sample_config.py for
+                    examples and documentation.
                 debug: Set this to True for debug logging.  (Default: False)
 
             Raises:
@@ -73,48 +60,75 @@ class FIXProtocol(protocol.Protocol):
         """
         if name is None:
             raise ValueError("name is None")
-        if queue is None:
-            raise ValueError("queue is None")
+        if transport is None:
+            raise ValueError("name is None")
 
         self.name = name
-        self.queue = queue
+        self.transport = transport
         self.config = kwargs.get('config', dict())
         self.link_config = kwargs.get('link_config', dict())
         self._debug = kwargs.get('debug')
 
-        self.parser = FIXParser(self,
-                                binary_fields=self.link_config.get(
-                                    'binary_fields', None),
-                                group_fields=self.link_config.get(
-                                    'group_fields', None),
-                                max_length=self.link_config.get(
-                                    'max_length', 2048))
+        self._parser = FIXParser(self,
+                                 header_fields=self.link_config.get(
+                                     'header_fields', None),
+                                 binary_fields=self.link_config.get(
+                                     'binary_fields', None),
+                                 group_fields=self.link_config.get(
+                                     'group_fields', None),
+                                 max_length=self.link_config.get(
+                                     'max_length', 2048))
 
         self._logger = logging.getLogger(__name__)
 
-    def dataReceived(self, data):
-        """ This is the callback that is called from Twisted.
+    def on_data_received(self, data):
+        """ This is the notification from the transport.
         """
-        self.parser.on_data_received(data)
+        # pass this onto the parser
+        self._parser.on_data_received(data)
 
     def send_message(self, message):
         """ Sends a message via the transport.
         """
-        if self.transport:
-            reactor.callFromThread(self.transport.write, message.to_binary())
-        else:
-            log_text(self._logger.info, None,
-                     'Cannot send message, no transport')
+        # add whatever fields are needed
+        self.transport.send_message(message.to_binary())
 
-    def on_message_received(self, message):
+    def on_message_received(self, message, message_length, checksum):
         """ This is the callback from the parser when a message has
             been received.
         """
+        # do whatever filtering we need to do here
+
+        # verify required tags
+
+        # verify the protocol version
+        if 'protocol_version' in self.link_config:
+            if self.link_config['protocol_version'] != message[8]:
+                raise FIXDataError(
+                    8, 'version mismatch: expect:{0} received:{1}'.format(
+                        self.link_config['protocol_version'],
+                        message[8]
+                        ))
+
+        # verify the length and checksum
+        if message_length != int(message[9]):
+            raise FIXDataError(
+                9, 'length mismatch: expect:{0} received {1}'.format(
+                    message_length, int(message[9])))
+
+        if checksum != int(message[10]):
+            raise FIXDataError(
+                10, 'checksum mismatch: expect:{0} received {1}'.format(
+                    checksum, message[10]))
+
+        self.transport.on_message_received(message)
 
     def on_error_received(self, error):
         """ This is the callback from the parser when an error in the
             message has been detected.
         """
+        # pylint: disable=no-self-use
+        raise error
 
     def on_timer_tick_received(self):
         """ This is the Twisted timer callback when the heartbeat interval

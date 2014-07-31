@@ -12,20 +12,20 @@ from ..base.utils import log_text
 from ..fix.message import FIXMessage, checksum
 
 
-class FIXMessageParseError(ValueError):
+class FIXParserError(ValueError):
     """ Exception: FIX Message is not in proper FIX format. """
     def __init__(self, message):
-        super(FIXMessageParseError, self).__init__()
+        super(FIXParserError, self).__init__()
         self.message = message
 
     def __str__(self):
         return self.message
 
 
-class FIXMessageLengthExceededError(ValueError):
+class FIXLengthTooLongError(ValueError):
     """ Exception: FIX message too long. """
     def __init__(self, message):
-        super(FIXMessageLengthExceededError, self).__init__()
+        super(FIXLengthTooLongError, self).__init__()
         self.message = message
 
     def __str__(self):
@@ -133,19 +133,19 @@ class FIXParser(object):
             Returns: a tuple containing (id, value).
 
             Raises:
-                FIXMessageParseError
+                FIXParserError
         """
         # pylint: disable=no-self-use
 
         delim = buf.find('=')
         if delim == -1:
-            raise FIXMessageParseError('Incorrect format: missing "="')
+            raise FIXParserError('Incorrect format: missing "="')
 
         tag_id = 0
         try:
             tag_id = int(buf[:delim])
         except ValueError:
-            raise FIXMessageParseError('Incorrect format: ID :' + buf[:delim])
+            raise FIXParserError('Incorrect format: ID:' + buf[:delim])
 
         return (tag_id, buf[delim+1:])
 
@@ -155,7 +155,7 @@ class FIXParser(object):
         if tag_id not in {8, 9, 10}:
             self._message_length += len(field) + 1
         if self._message_length >= self._max_length:
-            raise FIXMessageLengthExceededError(
+            raise FIXLengthTooLongError(
                 'message too long: {0}'.format(self._message_length))
 
     def _update_checksum(self, field, tag_id, value):
@@ -171,20 +171,20 @@ class FIXParser(object):
             if tag_id in self._binary_fields:
                 self._binary_length = len(str(tag_id + 1)) + int(value)
                 if self._binary_length > self._max_length:
-                    raise FIXMessageLengthExceededError(
-                        'binary field too long: {0}'.format(
-                            self._binary_length))
+                    raise FIXLengthTooLongError(
+                        'binary field too long: {0} ref:{1}'.format(
+                            self._binary_length, tag_id))
                 self._binary_tag = tag_id
             else:
                 self._binary_length = -1
         else:
             # Is this the wrong tag?
             if tag_id != (self._binary_tag + 1):
-                raise FIXMessageParseError(
+                raise FIXParserError(
                     'expected binary tag {0} found {1}'.format(
                         self._binary_tag + 1, tag_id))
             if len(field) != self._binary_length + 1:
-                raise FIXMessageParseError(
+                raise FIXParserError(
                     'binary length: expected {0} found {1}'.format(
                         self._binary_length + 1, len(field)))
             self._binary_tag = 0
@@ -294,10 +294,10 @@ class FIXParser(object):
                 # Is this the start of a message?
                 if tag_id == 8:
                     if self.is_parsing:
-                        raise FIXMessageParseError('unexpected tag: 8')
+                        raise FIXParserError('unexpected tag: 8')
                     self.is_parsing = True
                 elif not self.is_parsing:
-                    raise FIXMessageParseError('message must start with tag 8')
+                    raise FIXParserError('message must start with tag 8')
 
                 if self._debug:
                     log_text(self._logger.debug, None,
@@ -315,23 +315,15 @@ class FIXParser(object):
 
                 # Is this the end of a message?
                 if tag_id == 10:
-                    # verify the length and checksum
-                    if self._message_length != int(self._message[9]):
-                        raise FIXMessageParseError(
-                            'length mismatch: calc {0} received {1}'.format(
-                                self._message_length, int(self._message[9])))
-                    if self._checksum != int(self._message[10]):
-                        raise FIXMessageParseError(
-                            'checksum mismatch: calc {0} received {1}'.format(
-                                self._checksum, self._message[10]))
-
-                    self._receiver.on_message_received(self._message)
+                    self._receiver.on_message_received(self._message,
+                                                       self._message_length,
+                                                       self._checksum)
                     self.reset()
 
-        except FIXMessageLengthExceededError, err:
+        except FIXLengthTooLongError, err:
             self.reset(flush_buffer=True)
             self._receiver.on_error_received(err)
-        except FIXMessageParseError, err:
+        except FIXParserError, err:
             self.reset(flush_buffer=True)
             self._receiver.on_error_received(err)
         finally:

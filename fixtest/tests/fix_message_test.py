@@ -142,6 +142,7 @@ class TestFIXMessage(unittest.TestCase):
                           data)
 
     def test_to_binary_group(self):
+        """ Call to_binary() on a grouped message """
         mess = FIXMessage(header_fields=[8, 9])
         tags = collections.OrderedDict()
         mess[8] = 'FIX.4.2'
@@ -159,6 +160,52 @@ class TestFIXMessage(unittest.TestCase):
                                  '111=abcd',
                                  '10=086'),
                           data)
+
+    def test_group_from_list(self):
+        """ Call to_binary() on a grouped message from a list """
+        mess = FIXMessage(header_fields=[8, 9],
+                          source=[(8, 'FIX.4.2'),
+                                  (9, '25'),
+                                  (49, 'SERVER'),
+                                  (56, 'CLIENT'),
+                                  (99, 'X')])
+        self.assertEquals(to_fix('8=FIX.4.2',
+                                 '9=25',
+                                 '49=SERVER',
+                                 '56=CLIENT',
+                                 '99=X',
+                                 '10=239'),
+                          mess.to_binary())
+
+    def test_nested_group_from_list(self):
+        """ Call to_binary() on a nested grouped message from a list """
+        # As its difficult to test this, convert the (unordered)
+        # dict into an OrderedDict() before inserting (sorting by tag).
+        # This makes it easier to do the comparison.
+        from ..tests.utils import to_ordered_dict
+        mess = FIXMessage(
+            header_fields=[8, 9],
+            source=to_ordered_dict([(8, 'FIX.4.2'),
+                                    (100, [{101: 'abc', 102: 'def'},
+                                           {101: 'ghi', 103: 'jkl'},
+                                           {101: 'mno', 200: [
+                                               {201: 'aaa', 202: 'bbb'}]}]),
+                                    (99, 'X')]))
+        print mess.store
+        self.assertEquals(to_fix('8=FIX.4.2',
+                                 '9=73',
+                                 '100=3',
+                                 '101=abc',
+                                 '102=def',
+                                 '101=ghi',
+                                 '103=jkl',
+                                 '101=mno',
+                                 '200=1',
+                                 '201=aaa',
+                                 '202=bbb',
+                                 '99=X',
+                                 '10=034'),
+                          mess.to_binary())
 
     def test_to_binary_binarydata(self):
         mess = FIXMessage(header_fields=[8, 9])

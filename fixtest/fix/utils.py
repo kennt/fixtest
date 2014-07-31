@@ -16,7 +16,8 @@ def flatten(container):
 
         This is FIX specific.  If a key maps to a container, say
         (k: v) where v is another dict(), then the item (k, len(v))
-        is added to the list of items.
+        is added to the list of items, followed by
+        (k, v[0]), (k, v[1]), ...
     """
     items = list()
     for k, v in container.items():
