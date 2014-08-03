@@ -26,6 +26,33 @@ from fixtest.base.utils import log_text
 VERSION_STRING = '0.1'
 
 
+def _parse_command_line_args():
+    parser = argparse.ArgumentParser(description='FIX system test tool')
+    parser.add_argument(
+        'test_name',
+        help='Name of the test file to run. ' +
+             'This file must contain an instance of TestCaseController.')
+    parser.add_argument(
+        '-c', '--config-file',
+        help='use this config file (default: "my_config.py")',
+        default='my_config.py')
+    parser.add_argument(
+        '-v', '--version',
+        help='Display the version number',
+        action='store_true')
+    parser.add_argument(
+        '-d', '--debug',
+        help='enable debug output',
+        action='store_true',
+        default=False)
+    parser.add_argument(
+        'args',
+        help='Additional arguments will be passed onto the TestCaseController',
+        nargs=argparse.REMAINDER)
+
+    return parser.parse_args()
+
+
 def _setup_logging_config():
     """ Sets up the logging configuration.  Placed here mainly
         to reduce the amount of clutter in main()
@@ -63,8 +90,12 @@ def _find_controller(module_name):
                 be a TestController-derived class within this module.
                 Only the first one will be loaded and run.
     """
+    if not os.path.isfile(module_name):
+        print "Cannot find the file:" + module_name
+        sys.exit()
+
     module_path = module_name.replace('/', '.')
-    if module_path.endwith('.py'):
+    if module_path.endswith('.py'):
         module_path = module_path[:-3]
     module = importlib.import_module(module_path)
 
@@ -123,31 +154,7 @@ def main():
         test_thread = threading.Thread(target=call_function)
         test_thread.start()
 
-    parser = argparse.ArgumentParser(description='FIX system test tool')
-    parser.add_argument(
-        'test-name',
-        help='Name of the test file to run. ' +
-             'This file must contain an instance of TestCaseController.')
-    parser.add_argument(
-        '-c', '--config-file',
-        help='use this config file (default: "my_config.py")',
-        default='my_config.py')
-    parser.add_argument(
-        '-v', '--version',
-        help='Display the version number',
-        action='store_true')
-    parser.add_argument(
-        '-d', '--debug',
-        help='enable debug output',
-        action='store_true',
-        default=False)
-    parser.add_argument(
-        'args',
-        help='Additional arguments will be passed onto the TestCaseController',
-        nargs=argparse.REMAINDER)
-
-    arg_results = parser.parse_args()
-
+    arg_results = _parse_command_line_args()
     if arg_results.version is True:
         print "{0}, version {1}".format(sys.argv[0], VERSION_STRING)
         sys.exit()
@@ -168,10 +175,10 @@ def main():
 
     log_text(logger.info, None, '================')
     log_text(logger.info, None, 'Starting test: ' +
-                                datetime.datetime.now().date())
+                                str(datetime.datetime.now().date()))
     log_text(logger.info, None, '  Module: ' + arg_results.test_name)
     log_text(logger.info, None, '  Controller: ' + controller_class.__name__)
-    log_text(logger.info, None, '  Config: ' + argparse.config_file)
+    log_text(logger.info, None, '  Config: ' + file_name)
 
     controller = controller_class(config=config_file,
                                   test_params=arg_results.args)

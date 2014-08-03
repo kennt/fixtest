@@ -75,6 +75,10 @@ FIX_4_2 = {
 #   protocol_version:   This is the FIX version that is sent and is expected
 #       by the FIX protocol implementation.  This is the string that is in
 #       the BeginString(8) field.
+#   required_fields: A list of fields that are required to be in the
+#       message, both on sending and receiving.  This is checked for ALL
+#       messages, both data and administrative messages.  The tag must exist
+#       in the message and must not be blank.
 #   header_fields: A list of header tags.  This only affects
 #       the sending of the message. The order of the input
 #       fields is not validated. (Default: [8, 9, 35, 49, 56])
@@ -94,13 +98,16 @@ FIX_4_2 = {
 #
 #   FIX connection information:
 #   ==========================
-#   sender_compid: The sender endpoint ID.
-#   target_compid: The target endpoint ID.
 #   heartbeat: The heartbeat interval (in secs).  IF this
 #       is set to -1, then the heartbeat is not sent.
-#   send_msg_seqno: This is the starting seqno.
+#   send_seqno: This is the starting seqno.
 #   orderid_no: This is the starting order no.
 #
+#   Calculate fields (do NOT set these manually)
+#   ============================================
+#   sender_compid: The sender endpoint ID.
+#   target_compid: The target endpoint ID.
+
 
 CONNECTIONS = [
     {

@@ -20,7 +20,7 @@ class TestCaseController(object):
             testcase_id:
             description:
     """
-    def __init__(self):
+    def __init__(self, **kwargs):
         """ TestCaseController initialization
 
             Args:

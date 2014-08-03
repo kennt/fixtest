@@ -14,8 +14,8 @@ from fixtest.base.utils import log_text
 class SimpleController(TestCaseController):
     """ The base class for FIX-based TestCaseControllers.
     """
-    def __init__(self, *args, **kwargs):
-        super(SimpleController, self).__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super(SimpleController, self).__init__(**kwargs)
 
         self._servers = dict()
         self._clients = dict()
@@ -29,7 +29,7 @@ class SimpleController(TestCaseController):
 
         config = kwargs['config']
 
-        self.node_config = config.get_role(self.role)
+        self.node_config = config.get_role('test-server')
         self.node_config.update({'name': 'server-9940'})
 
         self.link_config = config.get_link('client', 'test-server')
