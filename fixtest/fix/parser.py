@@ -8,8 +8,8 @@
 import collections
 import logging
 
-from ..base.utils import log_text
-from ..fix.message import FIXMessage, checksum
+from fixtest.base.utils import log_text
+from fixtest.fix.message import FIXMessage, checksum
 
 
 class FIXParserError(ValueError):

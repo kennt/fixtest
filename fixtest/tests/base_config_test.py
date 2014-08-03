@@ -8,7 +8,7 @@
 import os
 import unittest
 
-from ..base.config import FileConfig, DictConfig
+from fixtest.base.config import FileConfig, DictConfig
 
 
 class TestConfig(unittest.TestCase):

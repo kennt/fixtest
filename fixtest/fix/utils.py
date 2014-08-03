@@ -7,8 +7,8 @@
 
 import collections
 
-from ..base.utils import format_log_line
-from ..fix.constants import FIX
+from fixtest.base.utils import format_log_line
+from fixtest.fix.constants import FIX
 
 
 def flatten(container):
@@ -27,6 +27,18 @@ def flatten(container):
         else:
             items.append((k, v))
     return items
+
+
+def format_time(input_datetime):
+    """ Formats the datetime according to the FIX spec.
+
+        Args:
+            input: a datetime
+
+        Returns:
+            A string that can be sent in a FIX message.
+    """
+    return input_datetime.strftime("%Y%m%d-%H:%M:%S")
 
 
 def format_message(message):

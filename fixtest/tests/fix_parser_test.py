@@ -7,9 +7,9 @@
 
 import unittest
 
-from ..fix.parser import FIXParser
-from ..fix.parser import FIXParserError, FIXLengthTooLongError
-from ..tests.utils import to_fix
+from fixtest.fix.parser import FIXParser
+from fixtest.fix.parser import FIXParserError, FIXLengthTooLongError
+from fixtest.tests.utils import to_fix
 
 # pylint: disable=too-many-public-methods
 # pylint: disable=missing-docstring

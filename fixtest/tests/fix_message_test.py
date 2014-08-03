@@ -8,9 +8,9 @@
 import collections
 import unittest
 
-from ..fix.constants import FIX
-from ..fix.message import checksum, FIXMessage
-from ..tests.utils import to_fix
+from fixtest.fix.constants import FIX
+from fixtest.fix.message import checksum, FIXMessage
+from fixtest.tests.utils import to_fix, to_ordered_dict
 
 
 class TestFIXMessage(unittest.TestCase):
@@ -182,7 +182,6 @@ class TestFIXMessage(unittest.TestCase):
         # As its difficult to test this, convert the (unordered)
         # dict into an OrderedDict() before inserting (sorting by tag).
         # This makes it easier to do the comparison.
-        from ..tests.utils import to_ordered_dict
         mess = FIXMessage(
             header_fields=[8, 9],
             source=to_ordered_dict([(8, 'FIX.4.2'),
@@ -191,7 +190,6 @@ class TestFIXMessage(unittest.TestCase):
                                            {101: 'mno', 200: [
                                                {201: 'aaa', 202: 'bbb'}]}]),
                                     (99, 'X')]))
-        print mess.store
         self.assertEquals(to_fix('8=FIX.4.2',
                                  '9=73',
                                  '100=3',

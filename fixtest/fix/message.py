@@ -8,7 +8,7 @@
 from cStringIO import StringIO
 import struct
 
-from ..base.message import BasicMessage
+from fixtest.base.message import BasicMessage
 
 
 def checksum(data, starting_checksum=0):

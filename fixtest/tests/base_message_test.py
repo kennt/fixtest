@@ -7,7 +7,7 @@
 import collections
 import unittest
 
-from ..base.message import BasicMessage
+from fixtest.base.message import BasicMessage
 
 
 class TestBasicMessage(unittest.TestCase):

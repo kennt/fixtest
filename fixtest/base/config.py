@@ -82,6 +82,14 @@ class Config(object):
         """
         return copy.deepcopy(self._config[section_name])
 
+    def update(self, new_entries):
+        """ Update the configuration with new data.
+
+            Arguments:
+                new_entries: The new data to add/update.
+        """
+        self._config.update(new_entries)
+
 
 class FileConfig(Config):
     """ Provide the configuration from a file.
