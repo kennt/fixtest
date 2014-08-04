@@ -26,11 +26,13 @@ class TestCaseController(object):
             Args:
                 config:
         """
-        self.testcase_id = None
-        self.description = None
+        # pylint: disable=unused-argument
+
+        self.testcase_id = 'Enter your testcase id'
+        self.description = 'Enter your testcase description'
         self.test_status = 'test: not-started'
 
-        self._logger = logging.Logger(__name__)
+        self._logger = logging.getLogger(__name__)
 
     def servers(self):
         """ Returns the dict of servers that need to be started

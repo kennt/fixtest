@@ -12,6 +12,8 @@ setup(
 	},
 	classifiers={
 		'Development Status :: 2 - Pre-Alpha',
+		'Intended Audience :: Developers',
+		'Intended Audience :: Financial and Insurance Industry',
 		'License :: OSI Approved :: MIT License',
 		'Programming Language :: Python :: 2.7',
 		'Topic :: System :: Networking',

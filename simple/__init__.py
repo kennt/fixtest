@@ -1,4 +1,4 @@
-""" Module for the FIX-specific modules for the fixtest tool.
+""" Module for testing.
 
     Copyright (c) 2014 Kenn Takara
     See LICENSE for details

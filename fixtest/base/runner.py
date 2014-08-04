@@ -18,6 +18,7 @@ import threading
 
 from twisted.internet import reactor
 from twisted.internet.endpoints import serverFromString
+from twisted.python import log
 
 from fixtest.base.controller import TestCaseController
 from fixtest.base.config import FileConfig
@@ -27,6 +28,10 @@ VERSION_STRING = '0.1'
 
 
 def _parse_command_line_args():
+    """ Parse the argument iist via the argparse module.
+
+        Returns: an argparse results object.
+    """
     parser = argparse.ArgumentParser(description='FIX system test tool')
     parser.add_argument(
         'test_name',
@@ -66,16 +71,16 @@ def _setup_logging_config():
             },
         },
         'handlers': {
-            'default': {
+            'console': {
                 'level': 'INFO',
+                'formatter': 'standard',
                 'class': 'logging.StreamHandler',
             },
         },
         'loggers': {
             '': {
-                'handlers': ['default'],
+                'handlers': ['console'],
                 'level': 'INFO',
-                'propagate': True,
             },
         },
     })
@@ -133,6 +138,9 @@ def main():
     """ Main entrypoint for the tool.  This will be called from the
         command-line script.
     """
+    logging.basicConfig()
+    _setup_logging_config()
+    logger = logging.getLogger(__name__)
 
     test_thread = None
     controller = None
@@ -151,6 +159,7 @@ def main():
         """ This will be called on the reactor thread to start up the
             testcase thread.
         """
+        log_text(logger.info, None, "in start_test_thread")
         test_thread = threading.Thread(target=call_function)
         test_thread.start()
 
@@ -159,10 +168,12 @@ def main():
         print "{0}, version {1}".format(sys.argv[0], VERSION_STRING)
         sys.exit()
 
-    _setup_logging_config()
-    logger = logging.getLogger(__file__)
     if arg_results.debug is True:
         logger.setLevel(logging.DEBUG)
+
+    # Twisted logging
+    observer = log.PythonLoggingObserver()
+    observer.start()
 
     file_name = arg_results.config_file
     if not os.path.isfile(file_name):
@@ -183,6 +194,7 @@ def main():
     controller = controller_class(config=config_file,
                                   test_params=arg_results.args)
 
+    log_text(logger.info, None, '')
     log_text(logger.info, None, '  Test case: ' + controller.testcase_id)
     log_text(logger.info, None, '  Description: ' + controller.description)
     log_text(logger.info, None, '================\n')
@@ -194,15 +206,20 @@ def main():
                                                           server['port']))
         endpoint = serverFromString(reactor,
                                     "tcp:{0}".format(server['port']))
-        endpoint.addCallback(controller.server_connect, server)
-        endpoint.addErrback(controller.server_failure, server)
-        endpoint.listen(server['factory'])
+        deferred = endpoint.listen(server['factory'])
+        deferred.addCallback(controller.server_connect, server)
+        deferred.addErrback(controller.server_failure, server)
 
     for sig in [signal.SIGINT, signal.SIGHUP, signal.SIGTERM, signal.SIGQUIT]:
         signal.signal(sig, term_signal_handler)
 
     reactor.callWhenRunning(start_test_thread, controller._start_test)
-    reactor.run()
+    if not reactor.running:
+        reactor.run()
 
     if test_thread is not None:
         test_thread.join()
+
+    log_text(logger.info, None, '================')
+    log_text(logger.info, None, 
+             "Test status: {0}".format(controller.test_status))
