@@ -98,7 +98,7 @@ def _find_controller(module_name):
     """
     if not os.path.isfile(module_name):
         print "Cannot find the file:" + module_name
-        sys.exit()
+        sys.exit(2)
 
     module_path = module_name.replace('/', '.')
     if module_path.endswith('.py'):
@@ -131,7 +131,7 @@ def _find_controller(module_name):
 
     if cls is None:
         print "Cannot find the TestCaseController in the file:" + module_name
-        sys.exit()
+        sys.exit(2)
     return cls
 
 
@@ -169,7 +169,7 @@ def main():
     arg_results = _parse_command_line_args()
     if arg_results.version is True:
         print "{0}, version {1}".format(sys.argv[0], VERSION_STRING)
-        sys.exit()
+        sys.exit(2)
 
     if arg_results.debug is True:
         logger.setLevel(logging.DEBUG)
@@ -181,7 +181,7 @@ def main():
     file_name = arg_results.config_file
     if not os.path.isfile(file_name):
         print "Cannot find the configuration file: {0}".format(file_name)
-        sys.exit()
+        sys.exit(2)
     config_file = FileConfig(file_name)
 
     # load/create the TestCaseController
@@ -229,3 +229,4 @@ def main():
     log_text(logger.info, None, '================')
     log_text(logger.info, None,
              "Test status: {0}\n".format(controller.test_status))
+    sys.exit(controller.exit_value)

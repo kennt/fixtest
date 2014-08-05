@@ -22,6 +22,8 @@ class TestCaseController(object):
         Attributes:
             testcase_id:
             description:
+            exit_value: The value returned when exiting from the
+                command line.
     """
     def __init__(self, **kwargs):
         """ TestCaseController initialization
@@ -34,6 +36,7 @@ class TestCaseController(object):
         self.testcase_id = 'Enter your testcase id'
         self.description = 'Enter your testcase description'
         self.test_status = 'test: not-started'
+        self.exit_value = 1
 
         self._is_cancelled = False
 
@@ -70,6 +73,7 @@ class TestCaseController(object):
             self.teardown()
 
             self.test_status = 'ok'
+            self.exit_value = 0
         except AssertionError, err:
             self.test_status = 'fail: assert failed : ' + str(err)
         except TestInterruptedError:
