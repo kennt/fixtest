@@ -6,9 +6,12 @@
 """
 
 import logging
+import time
 
 from twisted.internet import reactor
+from twisted.internet.endpoints import connectProtocol, clientFromString
 
+from fixtest.base import TestInterruptedError, TimeoutError
 from fixtest.base.utils import log_text
 
 
@@ -32,6 +35,8 @@ class TestCaseController(object):
         self.description = 'Enter your testcase description'
         self.test_status = 'test: not-started'
 
+        self._is_cancelled = False
+
         self._logger = logging.getLogger(__name__)
 
     def servers(self):
@@ -50,7 +55,7 @@ class TestCaseController(object):
         """
         raise NotImplementedError()
 
-    def _start_test(self):
+    def _execute_test(self):
         """ Runs the test.  This is the entrypoint from the
             TestCaseController.
         """
@@ -65,8 +70,13 @@ class TestCaseController(object):
             self.teardown()
 
             self.test_status = 'ok'
-        except Exception:
+        except TestInterruptedError:
+            self.test_status = 'fail: test cancelled'
+        except TimeoutError, err:
+            self.test_status = 'fail: timeout : ' + str(err)
+        except:
             self.test_status = 'fail: exception'
+            self._logger.exception('fail: exception')
         finally:
             if reactor.running:
                 reactor.callFromThread(reactor.stop)
@@ -101,19 +111,95 @@ class TestCaseController(object):
         """
         # pylint: disable=no-self-use
 
-    # Callbacks from Twisted upon server startup
-    def server_connect(self, result, *args):
-        """ This is called when a server starts listening """
-        server = args[0]
-        server['listener'] = result
+    def cancel_test(self):
+        """ Cancels the test.  Cancels any operations.
 
-        log_text(self._logger.info, __name__,
-                 'server:{0} listening on port {1}'.format(server['name'],
-                                                           server['port']))
+            Override this to take care of any cleanup/cancelling
+            that needs to be done.
+        """
+        self._is_cancelled = True
+        for node in self.clients().values():
+            node['node'].cancel()
+        for node in self.servers().values():
+            node['factory'].cancel()
 
-    def server_failure(self, error, *args):
-        """ This is called when a client fails to connect """
-        log_text(self._logger.error, __name__,
-                 'server:{0} failed to start: {1}'.format(args[0]['name'],
-                                                          error))
-        reactor.callFromThread(reactor.stop)
+    def _start_client(self, client):
+        """ This is a helper function that needs to get called
+            on the reactor thread.
+
+            Arguments:
+                client: The client dict().
+        """
+        log_text(self._logger.info, None,
+                 'client:{0} attempting {1}:{2}'.format(
+                     client['name'],
+                     client['host'],
+                     client['port']))
+        endpoint = clientFromString(
+            reactor, b"tcp:{0}:{1}:timeout=10".format(client['host'],
+                                                      client['port']))
+        node = client['node']
+        deferred = connectProtocol(endpoint, node)
+        deferred.addCallbacks(node.client_success,
+                              callbackArgs=(client,),
+                              errback=node.client_failure,
+                              errbackArgs=(client,))
+
+    def wait_for_client_connections(self, timeout):
+        """ Initiate and wait for all client connections to connect.
+
+            Arguments:
+                timeout:
+
+            Raises:
+                TimeoutError
+                TestInterruptedError
+        """
+        for client in self.clients().values():
+            reactor.callFromThread(self._start_client, client)
+
+        # Now have to wait until all clients are connected
+        per_sec = 5
+        success = True
+        for _ in xrange(timeout * per_sec):
+            if self._is_cancelled:
+                raise TestInterruptedError('test cancelled')
+
+            success = True
+            for client in self.clients().values():
+                if client.get('error', None) is not None:
+                    raise client['error']
+                elif client.get('connected', '') == '':
+                    success = False
+            if success:
+                break
+            time.sleep(1.0/per_sec)
+        if not success:
+            raise TimeoutError('waiting for clients to connect')
+
+    def wait_for_server_connections(self, timeout):
+        """ Wait for all server connections to connect.
+
+            Raises:
+                TestInterruptedError
+                TimeoutError
+        """
+        per_sec = 5
+        for _ in xrange(timeout * per_sec):
+            if self._is_cancelled:
+                raise TestInterruptedError('test cancelled')
+
+            success = True
+            for server in self.servers().values():
+                if server.get('error', None) is not None:
+                    raise server['error']
+                if server['factory'].count == 0:
+                    success = False
+                    break
+
+            if success:
+                break
+            time.sleep(1.0/per_sec)
+
+        if not success:
+            raise TimeoutError("waitng for servers to connect")

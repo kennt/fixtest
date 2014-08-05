@@ -38,7 +38,7 @@ CONNECTIONS = [
         'name': 'client-FIX-test-server',
         'protocol': 'FIX',
         'host': 'localhost',
-        'port': 8080,
+        'port': 9940,
 
         'client': 'FixClient',
         'test-server': 'FixServer',

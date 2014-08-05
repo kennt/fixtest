@@ -6,8 +6,10 @@
 """
 
 import logging
+import time
 
 from fixtest.base.controller import TestCaseController
+from fixtest.base.queue import TestInterruptedError
 from fixtest.base.utils import log_text
 from fixtest.fix.transport import FIXTransportFactory
 
@@ -22,8 +24,10 @@ class SimpleController(TestCaseController):
         self.description = 'Test of the command-line tool'
 
         config = kwargs['config']
+
         self.node_config = config.get_role('test-server')
         self.node_config.update({'name': 'server-9940'})
+
         self.link_config = config.get_link('client', 'test-server')
         self.link_config.update({
             'sender_compid': self.link_config['test-server'],
@@ -53,7 +57,12 @@ class SimpleController(TestCaseController):
         return self._servers
 
     def setup(self):
-        pass
+        """ For this case, wait until our servers are all
+            connected before continuing with the test.
+        """
+        # Have to wait for a server connection before we
+        # can run the test
+        self.wait_for_server_connections(10)
 
     def teardown(self):
         pass

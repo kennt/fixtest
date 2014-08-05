@@ -67,7 +67,8 @@ def _setup_logging_config():
         'disable_existing_loggers': False,
         'formatters': {
             'standard': {
-                'format': '%(thread)d %(message)s',
+                # 'format': '%(thread)d %(message)s',
+                'format': '%(message)s',
             },
         },
         'handlers': {
@@ -153,7 +154,10 @@ def main():
         # pylint: disable=unused-argument
         if controller is not None:
             controller.cancel_test()
-        reactor.callInThread(reactor.stop)
+
+        # The actual stop gets called in the finally portion
+        # of the run loop.
+        # reactor.callInThread(reactor.stop)
 
     def start_test_thread(call_function):
         """ This will be called on the reactor thread to start up the
@@ -171,9 +175,9 @@ def main():
     if arg_results.debug is True:
         logger.setLevel(logging.DEBUG)
 
-    # Twisted logging
-    observer = log.PythonLoggingObserver()
-    observer.start()
+        # Twisted logging
+        observer = log.PythonLoggingObserver()
+        observer.start()
 
     file_name = arg_results.config_file
     if not os.path.isfile(file_name):
@@ -197,7 +201,7 @@ def main():
     log_text(logger.info, None, '')
     log_text(logger.info, None, '  Test case: ' + controller.testcase_id)
     log_text(logger.info, None, '  Description: ' + controller.description)
-    log_text(logger.info, None, '================\n')
+    log_text(logger.info, None, '================')
 
     # startup the servers (they don't really startup until reactor.run())
     for server in controller.servers().values():
@@ -205,15 +209,18 @@ def main():
                  'server:{0} starting on port {1}'.format(server['name'],
                                                           server['port']))
         endpoint = serverFromString(reactor,
-                                    "tcp:{0}".format(server['port']))
-        deferred = endpoint.listen(server['factory'])
-        deferred.addCallback(controller.server_connect, server)
-        deferred.addErrback(controller.server_failure, server)
+                                    b"tcp:{0}".format(server['port']))
+        factory = server['factory']
+        deferred = endpoint.listen(factory)
+        deferred.addCallbacks(factory.server_success,
+                              callbackArgs=(server,),
+                              errback=factory.server_failure,
+                              errbackArgs=(server,))
 
     for sig in [signal.SIGINT, signal.SIGHUP, signal.SIGTERM, signal.SIGQUIT]:
         signal.signal(sig, term_signal_handler)
 
-    reactor.callWhenRunning(start_test_thread, controller._start_test)
+    reactor.callWhenRunning(start_test_thread, controller._execute_test)
     if not reactor.running:
         reactor.run()
 
@@ -221,5 +228,5 @@ def main():
         test_thread.join()
 
     log_text(logger.info, None, '================')
-    log_text(logger.info, None, 
-             "Test status: {0}".format(controller.test_status))
+    log_text(logger.info, None,
+             "Test status: {0}\n".format(controller.test_status))

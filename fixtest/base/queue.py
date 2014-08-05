@@ -11,25 +11,7 @@ import Queue
 import sys
 import time
 
-
-class TimeoutError(Exception):
-    """ Exception: MessageQueue wait_for_message timeout. """
-    def __init__(self, text):
-        super(TimeoutError, self).__init__()
-        self.text = text
-
-    def __str__(self):
-        return self.text
-
-
-class TestInterruptedError(Exception):
-    """ Exception: The user has manually cancelled the test. """
-    def __init__(self, text):
-        super(TestInterruptedError, self).__init__()
-        self.text = text
-
-    def __str__(self):
-        return self.text
+from fixtest.base import TimeoutError, TestInterruptedError
 
 
 class MessageQueue(Queue.Queue):
@@ -37,6 +19,8 @@ class MessageQueue(Queue.Queue):
     """
 
     def __init__(self, name):
+        Queue.Queue.__init__(self)
+
         self._name = name
 
         self._is_cancelled = False
