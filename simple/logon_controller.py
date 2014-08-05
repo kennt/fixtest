@@ -8,9 +8,12 @@
 import logging
 import time
 
+from fixtest.base.asserts import *
 from fixtest.base.controller import TestCaseController
 from fixtest.base.queue import TestInterruptedError
 from fixtest.base.utils import log_text
+from fixtest.fix.constants import FIX
+from fixtest.fix.messages import logon_message, logout_message
 from fixtest.fix.transport import FIXTransportFactory
 
 
@@ -53,6 +56,8 @@ class LogonController(TestCaseController):
         factory = FIXTransportFactory('server-9940',
                                       self.server_config,
                                       self.server_link_config)
+        factory.filter_heartbeat = False
+
         server = {
             'name': 'server-9940',
             'port': self.server_link_config['port'],
@@ -89,14 +94,53 @@ class LogonController(TestCaseController):
         """
         # at this point the servers should be waiting
         # so startup the clients
-        self.wait_for_client_connections(20)
-
-        # at this point the servers should be connected
-        # also
+        self.wait_for_client_connections(10)
         self.wait_for_server_connections(10)
 
     def teardown(self):
         pass
 
     def run(self):
-        pass
+        """ This test is a demonstration of logon and
+            heartbeat/TestRequest processing.  Usually
+            the logon process should be done from setup().
+        """
+        client = self._clients['client-9940']['node']
+        client.protocol.heartbeat = 5
+        # We only have a single server connection
+        server = self._servers['server-9940']['factory'].servers[0]
+        server.protocol.heartbeat = 5
+
+        # client -> server
+        client.send_message(logon_message(client))
+
+        # server <- client
+        message = server.wait_for_message(title='waiting for logon')
+        assert_is_not_none(message)
+        assert_tag(message, [(35, FIX.LOGON)])
+
+        # server -> client
+        server.send_message(logon_message(server))
+        server.start_heartbeat(True)
+    
+        # client <- server
+        message = client.wait_for_message(title='waiting for logon ack')
+        client.start_heartbeat(True)
+        assert_is_not_none(message)
+        assert_tag(message, [(35, FIX.LOGON)])
+
+        # Logout
+        client.send_message(logout_message(client))
+        message = server.wait_for_message(title='waiting for logout')
+        assert_is_not_none(message)
+        assert_tag(message, [(35, FIX.LOGOUT)])
+
+        server.send_message(logout_message(server))
+        server.start_heartbeat(False)
+
+        message = client.wait_for_message('waiting for logout ack')
+        client.start_heartbeat(False)
+        assert_is_not_none(message)
+        assert_tag(message, [(35, FIX.LOGOUT)])
+
+        #time.sleep(10)

@@ -7,7 +7,9 @@
 """
 
 import logging
+
 from twisted import internet
+from twisted.internet import task, reactor
 
 from fixtest.base import ConnectionError
 from fixtest.base.queue import MessageQueue
@@ -19,6 +21,13 @@ from fixtest.fix.utils import log_message
 
 class FIXTransportFactory(internet.protocol.Factory):
     """ The factory interface for the FIX Transport.
+
+        Attributes:
+            servers: The list of server instances that
+                this factory has created.
+            filter_heartbeat: Set this to True to filter out
+                heartbeat/TestRequest messages from instances
+                created from this factory. (Default: True)
     """
     def __init__(self, name, node_config, link_config):
         self.count = 0
@@ -27,7 +36,8 @@ class FIXTransportFactory(internet.protocol.Factory):
         self._node_config = node_config
         self._link_config = link_config
 
-        self._servers = list()
+        self.servers = list()
+        self.filter_heartbeat = True
 
         self._logger = logging.getLogger(__name__)
 
@@ -45,8 +55,7 @@ class FIXTransportFactory(internet.protocol.Factory):
                                           self._node_config,
                                           self._link_config)
 
-        self._servers.append(transport)
-        self.count += 1
+        self.servers.append(transport)
         return transport
 
     def create_transport(self, name, node_config, link_config):
@@ -56,16 +65,18 @@ class FIXTransportFactory(internet.protocol.Factory):
 
             Arguments:
                 name:
+                node_config:
+                link_config:
 
             Returns: an instance of a FIxTransport
         """
         # pylint: disable=no-self-use
-        queue = MessageQueue(name)
-        transport = FIXTransport(name, None, queue)
+        transport = FIXTransport(name, link_config)
         protocol = FIXProtocol(name,
                                transport,
                                config=node_config,
                                link_config=link_config)
+        protocol.filter_heartbeat = self.filter_heartbeat
         transport.protocol = protocol
         return transport
 
@@ -73,7 +84,7 @@ class FIXTransportFactory(internet.protocol.Factory):
         """ Cancels the test.  This will forward the cancel to
             the servers created from this factory.
         """
-        for server in self._servers:
+        for server in self.servers:
             server.cancel()
 
     # Callbacks from Twisted upon server startup
@@ -101,11 +112,24 @@ class FIXTransportFactory(internet.protocol.Factory):
 class FIXTransport(internet.protocol.Protocol):
     """ This class is the interface between the FIXProtocol and
         the actual Twisted transport.
+
+        Attributes:
+            name: The descriptive name for the connection.
+                Used mainly when logging.
+            protocol: The protocol object that does the
+                decoding of messages.
+            queue: The queue used to read messages from.
+            lc_task: The Twisted looping call task.
+            sender_compid:
+            target_compid:
     """
-    def __init__(self, name, protocol, queue):
+    def __init__(self, name, link_config):
         self.name = name
-        self.protocol = protocol
-        self.queue = queue
+        self.protocol = None
+        self.queue = MessageQueue(name)
+        self.lc_task = None
+        self.sender_compid = link_config['sender_compid']
+        self.target_compid = link_config['target_compid']
 
         self._logger = logging.getLogger(__name__)
 
@@ -135,10 +159,12 @@ class FIXTransport(internet.protocol.Protocol):
         """ This is the callback from the protocol.  Send the
             message onto through the transport.
         """
+        self.protocol.prepare_send_message(message)
+        data = message.to_binary()
         log_message(self._logger.info, self.name, message, 'message sent')
 
         if self.transport is not None:
-            self.transport.send_message(message.to_binary())
+            reactor.callFromThread(self.transport.write, data)
 
     def cancel(self):
         """ Cancel any remaining operations.
@@ -164,7 +190,37 @@ class FIXTransport(internet.protocol.Protocol):
                 fixtest.base.TestInterruptedError:
                 fixtest.base.TimeoutError:
         """
-        return self.queue.waitForMessage(title=title, timeout=timeout)
+        return self.queue.wait_for_message(title=title, timeout=timeout)
+
+    def start_heartbeat(self, enable):
+        """ Starts/stops the hearbeat processing.
+
+            Basically starts/stops a Twisted timer callback loop.
+            Note that if the loop is already started calling
+            start_heartbeat(True) will not do anything.  To change
+            the heartbeat interval, it is necessary to call
+            start_heartbeat(False) followed by start_heartbeat(True).
+
+            Arguments:
+                enable: True if starting the heartbeat processing,
+                    False to stop the processing.
+        """
+        if enable:
+            if self.lc_task is None:
+                self.lc_task = task.LoopingCall(self.on_timer_tick_received)
+                reactor.callFromThread(self.lc_task.start,
+                                       self.protocol.heartbeat,
+                                       now=False)
+        else:
+            if self.lc_task is not None:
+                self.lc_task.stop()
+                self.lc_task = None
+
+    def on_timer_tick_received(self):
+        """ This is the timer callback received from Twisted.
+            Forwards this call onto the protocol.
+        """
+        self.protocol.on_timer_tick_received()
 
     def client_success(self, result, *args, **kwargs):
         """ This is called from Twisted upon connection """

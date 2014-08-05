@@ -9,7 +9,6 @@ import datetime
 import logging
 import Queue
 import sys
-import time
 
 from fixtest.base import TimeoutError, TestInterruptedError
 
@@ -69,10 +68,9 @@ class MessageQueue(Queue.Queue):
                 raise TestInterruptedError('test cancelled')
 
             try:
-                message = self.get_nowait()
+                message = self.get(True, timeout=1.0)
             except Queue.Empty:
                 # if empty keep on cycling
                 sys.exc_clear()
-                time.sleep(0.1)
 
         return message

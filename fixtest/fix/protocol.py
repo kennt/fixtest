@@ -122,7 +122,7 @@ class FIXProtocol(object):
         # pass this onto the parser
         self._parser.on_data_received(data)
 
-    def send_message(self, message):
+    def prepare_send_message(self, message):
         """ Sends a message via the transport.
         """
         self._send_seqno += 1
@@ -143,7 +143,7 @@ class FIXProtocol(object):
                 raise FIXDataError(tag, 'missing field: id:{0}'.format(tag))
 
         self._last_send_time = send_time
-        self.transport.send_message(message)
+        return message
 
     def on_message_received(self, message, message_length, checksum):
         """ This is the callback from the parser when a message has
@@ -184,7 +184,7 @@ class FIXProtocol(object):
 
         # We have received a testrequest and need to send a response
         if message.msg_type() == FIX.TEST_REQUEST:
-            self.send_message(
+            self.transport.send_message(
                 FIXMessage(source=[(35, FIX.HEARTBEAT),
                                    (112, message[112]),
                                    (49, self.link_config['sender_compid']),
@@ -218,7 +218,7 @@ class FIXProtocol(object):
         # if heartbeat seconds have elapsed since the last time
         # a message was sent, send a heartbeat
         if (now - self._last_send_time).seconds > self.heartbeat:
-            self.send_message(
+            self.transport.send_message(
                 FIXMessage(source=[(35, FIX.HEARTBEAT),
                                    (49, self.link_config['sender_compid']),
                                    (56, self.link_config['target_compid'])]))
@@ -229,7 +229,7 @@ class FIXProtocol(object):
             testrequest_id = "TR{0}".format(format_time(now))
             self._testrequest_time = now
             self._testrequest_id = testrequest_id
-            self.send_message(
+            self.transport.send_message(
                 FIXMessage(source=[(35, FIX.TEST_REQUEST),
                                    (112, testrequest_id),
                                    (49, self.link_config['sender_compid']),

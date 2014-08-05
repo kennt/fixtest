@@ -163,7 +163,6 @@ def main():
         """ This will be called on the reactor thread to start up the
             testcase thread.
         """
-        log_text(logger.info, None, "in start_test_thread")
         test_thread = threading.Thread(target=call_function)
         test_thread.start()
 

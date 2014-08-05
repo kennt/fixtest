@@ -70,6 +70,8 @@ class TestCaseController(object):
             self.teardown()
 
             self.test_status = 'ok'
+        except AssertionError, err:
+            self.test_status = 'fail: assert failed : ' + str(err)
         except TestInterruptedError:
             self.test_status = 'fail: test cancelled'
         except TimeoutError, err:
@@ -169,8 +171,9 @@ class TestCaseController(object):
             for client in self.clients().values():
                 if client.get('error', None) is not None:
                     raise client['error']
-                elif client.get('connected', '') == '':
+                if client.get('connected', '') == '':
                     success = False
+                    break
             if success:
                 break
             time.sleep(1.0/per_sec)
@@ -193,10 +196,9 @@ class TestCaseController(object):
             for server in self.servers().values():
                 if server.get('error', None) is not None:
                     raise server['error']
-                if server['factory'].count == 0:
+                if len(server['factory'].servers) == 0:
                     success = False
                     break
-
             if success:
                 break
             time.sleep(1.0/per_sec)

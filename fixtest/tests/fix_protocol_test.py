@@ -22,6 +22,7 @@ class TestFIXProtocol(unittest.TestCase):
 
     class MockFIXTransport(object):
         def __init__(self):
+            self.protocol = None
             self.message_received_count = 0
             self.last_message_received = None
 
@@ -35,6 +36,7 @@ class TestFIXProtocol(unittest.TestCase):
             self.last_message_received = message
 
         def send_message(self, message):
+            self.protocol.prepare_send_message(message)
             self.message_sent_count += 1
             self.last_message_sent = message
 
@@ -62,6 +64,7 @@ class TestFIXProtocol(unittest.TestCase):
                                         'sender_compid': 'sender',
                                         'target_compid': 'target',
                                     })
+        self.transport.protocol = self.protocol
 
     def test_bad_protocol_version(self):
         """ Send a bad protocol_version through the protocol. """
@@ -254,16 +257,16 @@ class TestFIXProtocol(unittest.TestCase):
     def test_simple_send(self):
         """ test simple sending """
         self.assertEquals(0, self.transport.message_sent_count)
-        self.protocol.send_message(FIXMessage(source=[(8, 'FIX.4.2'),
-                                                      (35, 'A'), ]))
+        self.transport.send_message(FIXMessage(source=[(8, 'FIX.4.2'),
+                                                       (35, 'A'), ]))
         self.assertEquals(1, self.transport.message_sent_count)
 
     def test_send_seqno(self):
         """ test send sequence numbering """
         seqno = self.protocol._send_seqno
         self.assertEquals(0, self.transport.message_sent_count)
-        self.protocol.send_message(FIXMessage(source=[(8, 'FIX.4.2'),
-                                                      (35, 'A'), ]))
+        self.transport.send_message(FIXMessage(source=[(8, 'FIX.4.2'),
+                                                       (35, 'A'), ]))
         self.assertEquals(1, self.transport.message_sent_count)
         self.assertEquals(seqno+1, self.protocol._send_seqno)
 
@@ -275,7 +278,7 @@ class TestFIXProtocol(unittest.TestCase):
                                      (35, 'A'), ])
         self.assertTrue(34 not in message)
         self.assertTrue(52 not in message)
-        self.protocol.send_message(message)
+        self.transport.send_message(message)
         self.assertEquals(1, self.transport.message_sent_count)
 
         # check for seqno(34) and sendtime(52)
