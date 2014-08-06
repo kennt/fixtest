@@ -142,5 +142,3 @@ class LogonController(TestCaseController):
         client.start_heartbeat(False)
         assert_is_not_none(message)
         assert_tag(message, [(35, FIX.LOGOUT)])
-
-        #time.sleep(10)
