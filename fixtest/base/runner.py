@@ -139,7 +139,6 @@ def main():
     """ Main entrypoint for the tool.  This will be called from the
         command-line script.
     """
-    logging.basicConfig()
     _setup_logging_config()
     logger = logging.getLogger(__name__)
 
@@ -220,8 +219,7 @@ def main():
         signal.signal(sig, term_signal_handler)
 
     reactor.callWhenRunning(start_test_thread, controller._execute_test)
-    if not reactor.running:
-        reactor.run()
+    reactor.run()
 
     if test_thread is not None:
         test_thread.join()

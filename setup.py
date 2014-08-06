@@ -1,9 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
 	name='fixtest',
 	version='0.1',
-	packages=['fixtest',],
+	packages=find_packages(),
 	install_requires=['twisted>=14.0.0'],
 	license='MIT',
 	author='Kenn Takara',
@@ -19,4 +19,5 @@ setup(
 		'Topic :: System :: Networking',
 		'Topic :: Software Development :: Testing',
 	},
+	url='https://github.com/kennt/fixtest'
 )
