@@ -114,7 +114,7 @@ class LogonController(TestCaseController):
         config = kwargs['config']
 
         self.server_config = config.get_role('test-server')
-        self.server_config.update({'name': 'server-9940'})
+        self.server_config.update({'name': 'server-9000'})
 
         self.server_link_config = config.get_link('client', 'test-server')
         self.server_link_config.update({
@@ -123,7 +123,7 @@ class LogonController(TestCaseController):
             })
 
         self.client_config = config.get_role('client')
-        self.client_config.update({'name': 'client-9940'})
+        self.client_config.update({'name': 'client-9000'})
 
         self.client_link_config = config.get_link('client', 'test-server')
         self.client_link_config.update({
@@ -134,13 +134,13 @@ class LogonController(TestCaseController):
         self._servers = dict()
         self._clients = dict()
 
-        factory = FIXTransportFactory('server-9940',
+        factory = FIXTransportFactory('server-9000',
                                       self.server_config,
                                       self.server_link_config)
         factory.filter_heartbeat = False
 
         server = {
-            'name': 'server-9940',
+            'name': 'server-9000',
             'port': self.server_link_config['port'],
             'factory': factory,
         }
@@ -149,10 +149,10 @@ class LogonController(TestCaseController):
         # In the client case we do not need to provide a
         # factory, Just need a transport.
         client = {
-            'name': 'client-9940',
+            'name': 'client-9000',
             'host': self.client_link_config['host'],
             'port': self.client_link_config['port'],
-            'node': factory.create_transport('client-9940',
+            'node': factory.create_transport('client-9000',
                                              self.client_config,
                                              self.client_link_config),
         }
@@ -186,10 +186,10 @@ class LogonController(TestCaseController):
             heartbeat/TestRequest processing.  Usually
             the logon process should be done from setup().
         """
-        client = self._clients['client-9940']['node']
+        client = self._clients['client-9000']['node']
         client.protocol.heartbeat = 5
         # We only have a single server connection
-        server = self._servers['server-9940']['factory'].servers[0]
+        server = self._servers['server-9000']['factory'].servers[0]
         server.protocol.heartbeat = 5
 
         # client -> server
@@ -233,3 +233,56 @@ To run this, use the command line
 	fixtest -c simple_config.py testcases/logon_test.py
 
 ```
+
+
+### Sample output
+
+```
+(fixtest)~/dev/src/fixtest > fixtest -c simple/simple_config.py simple/logon_controller.py 
+12:52:10.468172: ================
+12:52:10.468496: Starting test: 2014-08-06
+12:52:10.468643:   Module: simple/logon_controller.py
+12:52:10.468778:   Controller: LogonController
+12:52:10.468908:   Config: simple/simple_config.py
+12:52:10.470420: 
+12:52:10.470547:   Test case: Simple-1
+12:52:10.470657:   Description: Test of the command-line tool
+12:52:10.470761: ================
+12:52:10.470868: server:server-9000 starting on port 9000
+12:52:10.472101: fixtest.fix.transport: server:server-9000 listening on port 9000
+12:52:10.472997: client:client-9000 attempting localhost:9000
+12:52:12.810111: client-9000: Connection made
+12:52:12.810329: fixtest.fix.transport: client:client-9000 connected to localhost:9000
+12:52:12.810626: Connected: fixtest.fix.transport.FIXTransportFactory : server-9000
+12:52:12.811074: server-9000: Connection made
+12:52:13.010270: client-9000: message sent
+    Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20140806-12:52:13, 10=045
+
+12:52:13.012275: server-9000: message received
+    Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20140806-12:52:13, 10=045
+
+12:52:13.015563: server-9000: message sent
+    Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20140806-12:52:13, 10=045
+
+12:52:13.016854: client-9000: message received
+    Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20140806-12:52:13, 10=045
+
+12:52:13.017925: client-9000: message sent
+    Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=2, 52=20140806-12:52:13, 10=053
+
+12:52:13.019156: server-9000: message received
+    Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=2, 52=20140806-12:52:13, 10=053
+
+12:52:13.020144: server-9000: message sent
+    Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=2, 52=20140806-12:52:13, 10=053
+
+12:52:13.021321: client-9000: message received
+    Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=2, 52=20140806-12:52:13, 10=053
+
+12:52:13.022400: server-9000: Connection lost
+12:52:13.022687: client-9000: Connection lost
+12:52:13.023373: ================
+12:52:13.023508: Test status: ok
+
+```
+
