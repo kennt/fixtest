@@ -27,6 +27,7 @@ def logout_message(client):
                               (49, client.sender_compid),
                               (56, client.target_compid)])
 
+
 def new_order_message(client, **kwargs):
     """ Generates a new order message.
 
@@ -53,11 +54,12 @@ def new_order_message(client, **kwargs):
         (21, '1'),  # handlInst
         (55, kwargs['symbol']),
         (54, kwargs['side']),
-        (60, format_time(datetime.datetime.now()),
+        (60, format_time(datetime.datetime.now())),
         (40, kwargs['order_type']),
         ] + extra_tags)
-  
-  def execution_report(client, message):
+
+
+def execution_report(client, **kwargs):
     """ Generates an execution report
 
         Returns:
@@ -88,4 +90,3 @@ def new_order_message(client, **kwargs):
         (14, kwargs['cum_qty']),
         (6, kwargs['avg_px']),
         ] + extra_tags)
-  
