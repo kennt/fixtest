@@ -315,8 +315,8 @@ class SimpleClientServerController(BaseClientServerController):
         self._logger = logging.getLogger(__name__)
 
     def run(self):
-        """ Run the test.  Here we send a new_order and
-            then a modify.
+        """ Run the test.  Here we send a NewOrder and
+            wait for the NewOrder ack.
         """
         # client -> server
         self.client.send_message(new_order_message(self.client))
