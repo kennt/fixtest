@@ -293,7 +293,7 @@ code were removed and placed in the base class setup/teardown functions.
 
 Thus leaving run() to perform the real test work.
 
-```
+```python
 import logging
 
 from fixtest.base.asserts import *
