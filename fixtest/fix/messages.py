@@ -59,14 +59,26 @@ def new_order_message(client, **kwargs):
         ] + extra_tags)
 
 
-def execution_report(client, **kwargs):
+def execution_report(client, prev_message, **kwargs):
     """ Generates an execution report
 
+        Arguments:
+            client
+            prev_message
+            exec_trans_type:
+            exec_type:
+            ord_status:
+            leaves_qty:
+            cum_qty:
+            avg_px:
+
         Returns:
+        Raises:
+            ValueError
     """
     # Required parameters
     for sym in ['exec_trans_type', 'exec_type', 'ord_status',
-                'symbol', 'side', 'leaves_qty', 'cum_qty',
+                'leaves_qty', 'cum_qty',
                 'avg_px']:
         if sym not in kwargs:
             raise ValueError("{0} must have a value".format(sym))
@@ -75,18 +87,19 @@ def execution_report(client, **kwargs):
     extra_tags = kwargs.get('extra_tags', [])
     exec_id = kwargs.get('exec_id', None) or client.get_next_orderid()
 
-    return FIXMessage(source=[
+    message = FIXMessage(source=prev_message)
+    message.update([
         (35, FIX.EXECUTION_REPORT),
         (49, client.sender_compid),
         (56, client.target_compid),
+        (11, prev_message[11]),
         (37, client.get_next_orderid()),
         (17, exec_id),
         (20, kwargs['exec_trans_type']),
         (150, kwargs['exec_type']),
         (39, kwargs['ord_status']),
-        (55, kwargs['symbol']),
-        (54, kwargs['side']),
         (151, kwargs['leaves_qty']),
         (14, kwargs['cum_qty']),
         (6, kwargs['avg_px']),
         ] + extra_tags)
+    return message

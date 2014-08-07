@@ -30,15 +30,30 @@ class SimpleClientServerController(BaseClientServerController):
             then a modify.
         """
         # client -> server
-        self.client.send_message(new_order_message(self.client))
+        self.client.send_message(new_order_message(self.client,
+            symbol='abc',
+            side='0',
+            order_type='1',
+            extra_tags=[(38, 100),      # orderQty
+                        (44, 10),       # price
+                       ]))
 
         # server <- client
         message = self.server.wait_for_message('waiting for new order')
-        self.assert_is_not_none(message)
+        assert_is_not_none(message)
 
         # server -> client
-        self.server.send_message(execution_report(self.server, message))
+        self.server.send_message(execution_report(self.server,
+            message,
+            exec_trans_type='0',
+            exec_type='0',
+            ord_status='0',
+            symbol='abc',
+            side='0',
+            leaves_qty='100',
+            cum_qty='0',
+            avg_px='0'))
 
         # client <- server
         message = self.client.wait_for_message('waiting for new order ack')
-        self.assert_is_not_none(message)
+        assert_is_not_none(message)

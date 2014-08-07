@@ -26,7 +26,7 @@ class BaseClientServerController(TestCaseController):
         the same link config.
     """
     def __init__(self, **kwargs):
-        super(LogonController, self).__init__(**kwargs)
+        super(BaseClientServerController, self).__init__(**kwargs)
 
         config = kwargs['config']
 
@@ -127,7 +127,7 @@ class BaseClientServerController(TestCaseController):
         assert_is_not_none(message)
         assert_tag(message, [(35, FIX.LOGOUT)])
 
-        self.server.send_message(logout_message(server))
+        self.server.send_message(logout_message(self.server))
         self.server.start_heartbeat(False)
 
         message = self.client.wait_for_message('waiting for logout ack')

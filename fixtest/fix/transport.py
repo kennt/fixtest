@@ -6,6 +6,7 @@
 
 """
 
+import datetime
 import logging
 
 from twisted import internet
@@ -123,6 +124,8 @@ class FIXTransport(internet.protocol.Protocol):
             sender_compid:
             target_compid:
     """
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self, name, link_config):
         self.name = name
         self.protocol = None
@@ -130,8 +133,22 @@ class FIXTransport(internet.protocol.Protocol):
         self.lc_task = None
         self.sender_compid = link_config['sender_compid']
         self.target_compid = link_config['target_compid']
+        self._orderid_no = 0
 
         self._logger = logging.getLogger(__name__)
+
+    def get_next_orderid(self):
+        """ Generates a valid orderID.
+            This uses a combination of the transport name,
+            the current date, and an internal counter.
+
+            Returns: a new orderID string
+        """
+        self._orderid_no += 1
+        return "{0}/{1}/{2}".format(
+            self.name,
+            datetime.datetime.now().strftime("%Y%m%d"),
+            self._orderid_no)
 
     def connectionMade(self):
         log_text(self._logger.info, self.name, "Connection made")

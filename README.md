@@ -304,7 +304,7 @@ from simple_base import BaseClientServerController
 
 
 class SimpleClientServerController(BaseClientServerController):
-    """ This illustrates the use of client and server endpoints.
+    """ The base class for FIX-based TestCaseControllers.
     """
     def __init__(self, **kwargs):
         super(SimpleClientServerController, self).__init__(**kwargs)
@@ -315,21 +315,96 @@ class SimpleClientServerController(BaseClientServerController):
         self._logger = logging.getLogger(__name__)
 
     def run(self):
-        """ Run the test.  Here we send a NewOrder and
-            wait for the NewOrder ack.
+        """ Run the test.  Here we send a new_order and
+            then a modify.
         """
         # client -> server
-        self.client.send_message(new_order_message(self.client))
+        self.client.send_message(new_order_message(self.client,
+            symbol='abc',
+            side='0',
+            order_type='1',
+            extra_tags=[(38, 100),      # orderQty
+                        (44, 10),       # price
+                       ]))
 
         # server <- client
         message = self.server.wait_for_message('waiting for new order')
         assert_is_not_none(message)
 
         # server -> client
-        self.server.send_message(execution_report(self.server, message))
+        self.server.send_message(execution_report(self.server,
+            message,
+            exec_trans_type='0',
+            exec_type='0',
+            ord_status='0',
+            symbol='abc',
+            side='0',
+            leaves_qty='100',
+            cum_qty='0',
+            avg_px='0'))
 
         # client <- server
         message = self.client.wait_for_message('waiting for new order ack')
-        assert_is_not_none(message)
+        assert_is_not_none(message)```
 ```
 
+Here is the resulting output:
+
+```
+17:48:15.066436: ================
+17:48:15.066607: Starting test: 2014-08-07
+17:48:15.066684:   Module: simple/simple_test.py
+17:48:15.066757:   Controller: SimpleClientServerController
+17:48:15.066827:   Config: simple/simple_config.py
+17:48:15.067619: 
+17:48:15.067700:   Test case: Simple NewOrder test
+17:48:15.067772:   Description: Test of the command-line tool
+17:48:15.067841: ================
+17:48:15.067912: server:server-9940 starting on port 9940
+17:48:15.068883: fixtest.fix.transport: server:server-9940 listening on port 9940
+17:48:15.069471: client:client-9940 attempting localhost:9940
+17:48:15.112361: Connected: fixtest.fix.transport.FIXTransportFactory : server-9940
+17:48:15.112912: server-9940: Connection made
+17:48:15.113281: client-9940: Connection made
+17:48:15.113377: fixtest.fix.transport: client:client-9940 connected to localhost:9940
+17:48:15.270715: client-9940: message sent
+    Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20140807-17:48:15, 10=058
+
+17:48:15.271588: server-9940: message received
+    Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20140807-17:48:15, 10=058
+
+17:48:15.272481: server-9940: message sent
+    Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20140807-17:48:15, 10=058
+
+17:48:15.273204: client-9940: message received
+    Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20140807-17:48:15, 10=058
+
+17:48:15.274292: client-9940: message sent
+    NewOrderSingle : 8=FIX.4.2, 9=139, 35=D, 49=FixClient, 56=FixServer, 11=client-9940/20140807/1, 21=1, 55=abc, 54=0, 60=20140807-17:48:15, 40=1, 38=100, 44=10, 34=2, 52=20140807-17:48:15, 10=105
+
+17:48:15.275188: server-9940: message received
+    NewOrderSingle : 8=FIX.4.2, 9=139, 35=D, 49=FixClient, 56=FixServer, 11=client-9940/20140807/1, 21=1, 55=abc, 54=0, 60=20140807-17:48:15, 40=1, 38=100, 44=10, 34=2, 52=20140807-17:48:15, 10=105
+
+17:48:15.276382: server-9940: message sent
+    ExecutionReport : (New) : 8=FIX.4.2, 9=224, 35=8, 49=FixServer, 56=FixClient, 11=client-9940/20140807/1, 21=1, 55=abc, 54=0, 60=20140807-17:48:15, 40=1, 38=100, 44=10, 34=2, 52=20140807-17:48:15, 37=server-9940/20140807/2, 17=server-9940/20140807/1, 20=0, 150=0, 39=0, 151=100, 14=0, 6=0, 10=176
+
+17:48:15.277720: client-9940: message received
+    ExecutionReport : (New) : 8=FIX.4.2, 9=224, 35=8, 49=FixServer, 56=FixClient, 11=client-9940/20140807/1, 21=1, 55=abc, 54=0, 60=20140807-17:48:15, 40=1, 38=100, 44=10, 34=2, 52=20140807-17:48:15, 37=server-9940/20140807/2, 17=server-9940/20140807/1, 20=0, 150=0, 39=0, 151=100, 14=0, 6=0, 10=176
+
+17:48:15.280502: client-9940: message sent
+    Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=3, 52=20140807-17:48:15, 10=067
+
+17:48:15.281089: server-9940: message received
+    Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=3, 52=20140807-17:48:15, 10=067
+
+17:48:15.282183: server-9940: message sent
+    Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=3, 52=20140807-17:48:15, 10=067
+
+17:48:15.282773: client-9940: message received
+    Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=3, 52=20140807-17:48:15, 10=067
+
+17:48:15.284066: server-9940: Connection lost
+17:48:15.284246: client-9940: Connection lost
+17:48:15.284561: ================
+17:48:15.284648: Test status: ok
+```
