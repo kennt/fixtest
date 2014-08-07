@@ -289,7 +289,7 @@ To run this, use the command line
 ### More sample code
 
 This is a sample of what the code would like if the logon/logout
-code were removed and placed in a base class setup/teardown functions.
+code were removed and placed in the base class setup/teardown functions.
 
 Thus leaving run() to perform the real test work.
 
@@ -304,7 +304,7 @@ from simple_base import BaseClientServerController
 
 
 class SimpleClientServerController(BaseClientServerController):
-    """ The base class for FIX-based TestCaseControllers.
+    """ This illustrates the use of client and server endpoints.
     """
     def __init__(self, **kwargs):
         super(SimpleClientServerController, self).__init__(**kwargs)
@@ -323,13 +323,13 @@ class SimpleClientServerController(BaseClientServerController):
 
         # server <- client
         message = self.server.wait_for_message('waiting for new order')
-        self.assert_is_not_none(message)
+        assert_is_not_none(message)
 
         # server -> client
         self.server.send_message(execution_report(self.server, message))
 
         # client <- server
         message = self.client.wait_for_message('waiting for new order ack')
-        self.assert_is_not_none(message)
+        assert_is_not_none(message)
 ```
 
