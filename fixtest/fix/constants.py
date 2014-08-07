@@ -26,6 +26,7 @@ class FIX(object):
     EXECUTION_REPORT = '8'
     ORDER_CANCEL_REQUEST = '9'
     LOGON = 'A'
+    NEWORDER_SINGLE = 'D'
 
     _msgtype_map = {
         '0': 'Heartbeat',
