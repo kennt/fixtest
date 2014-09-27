@@ -8,7 +8,6 @@
 import logging
 
 from fixtest.base.asserts import *
-from fixtest.fix.constants import FIX
 from fixtest.fix.messages import new_order_message, execution_report
 
 from simple_base import BaseClientServerController

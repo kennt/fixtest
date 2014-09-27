@@ -6,11 +6,8 @@
 """
 
 import logging
-import time
 
 from fixtest.base.controller import TestCaseController
-from fixtest.base.queue import TestInterruptedError
-from fixtest.base.utils import log_text
 from fixtest.fix.transport import FIXTransportFactory
 
 

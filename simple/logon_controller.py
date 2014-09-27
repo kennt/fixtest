@@ -6,12 +6,9 @@
 """
 
 import logging
-import time
 
 from fixtest.base.asserts import *
 from fixtest.base.controller import TestCaseController
-from fixtest.base.queue import TestInterruptedError
-from fixtest.base.utils import log_text
 from fixtest.fix.constants import FIX
 from fixtest.fix.messages import logon_message, logout_message
 from fixtest.fix.transport import FIXTransportFactory
@@ -20,7 +17,7 @@ from fixtest.fix.transport import FIXTransportFactory
 class LogonController(TestCaseController):
     """ The base class for FIX-based TestCaseControllers.
 
-        This creates a client and a server that will 
+        This creates a client and a server that will
         communicate with each other.  So they will use
         the same link config.
     """
@@ -122,7 +119,7 @@ class LogonController(TestCaseController):
         # server -> client
         server.send_message(logon_message(server))
         server.start_heartbeat(True)
-    
+
         # client <- server
         message = client.wait_for_message(title='waiting for logon ack')
         client.start_heartbeat(True)
