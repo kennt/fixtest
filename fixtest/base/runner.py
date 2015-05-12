@@ -24,7 +24,7 @@ from fixtest.base.controller import TestCaseController
 from fixtest.base.config import FileConfig
 from fixtest.base.utils import log_text
 
-VERSION_STRING = '0.1'
+VERSION_STRING = '0.1.1'
 
 
 def _parse_command_line_args():
@@ -100,14 +100,20 @@ def _find_controller(module_name):
         print "Cannot find the file:" + module_name
         sys.exit(2)
 
+    # Update the sys.path to contain the current directory
+    # so that we can find the controller correctly
+    sys.path.append(os.getcwd())
+
     module_path = module_name.replace('/', '.')
     if module_path.endswith('.py'):
         module_path = module_path[:-3]
+    print "looking for module_path: {0}".format(module_path)
     module = importlib.import_module(module_path)
 
     cls = None
 
     for entry in dir(module):
+        print "Looking at entry: {0}".format(entry)
         if entry == 'TestController':
             continue
 

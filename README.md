@@ -408,3 +408,9 @@ Here is the resulting output:
 17:48:15.284561: ================
 17:48:15.284648: Test status: ok
 ```
+
+## Changelog
+
+### 0.1.1
+Fixed Issue #1.  Need to append the current directory to sys.path to load
+modules correctly.

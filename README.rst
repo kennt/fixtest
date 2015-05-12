@@ -420,3 +420,11 @@ Here is the resulting output:
     17:48:15.284561: ================
     17:48:15.284648: Test status: ok
 
+
+Changelog
+---------
+
+0.1.1
+=====
+Fixed Issue #1, tests only run out of the simple directory.  They can
+now be run from any directory.

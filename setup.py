@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
 	name='fixtest',
-	version='0.1.0',
+	version='0.1.1',
 	packages=find_packages(),
 	install_requires=['twisted>=14.0.0'],
 	license='MIT',
