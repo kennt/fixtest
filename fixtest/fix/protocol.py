@@ -220,9 +220,9 @@ class FIXProtocol(object):
                 (now - self._testrequest_time).seconds > 2*self.heartbeat):
             raise FIXTimeoutError('testrequest response timeout')
 
-        # if heartbeat seconds have elapsed since the last time
+        # if heartbeat seconds/2 have elapsed since the last time
         # a message was sent, send a heartbeat
-        if (now - self._last_send_time).seconds > self.heartbeat:
+        if (now - self._last_send_time).seconds > (self.heartbeat/2):
             self.transport.send_message(
                 FIXMessage(source=[(35, FIX.HEARTBEAT),
                                    (49, self.link_config['sender_compid']),
