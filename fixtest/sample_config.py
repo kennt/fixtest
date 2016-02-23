@@ -94,6 +94,8 @@ FIX_4_2 = {
 #   group_fields: A dictionary of fields that belong
 #       to a group. The key is the group ID field that maps
 #       to a list of IDs that belong to the group.
+#   common_fields: A list of tag/value tuples which will be added
+#       to every message sent
 #   max_length: The maximum length of message (Default: 2048)
 #
 #   FIX connection information:
@@ -132,5 +134,7 @@ CONNECTIONS = [
         'header_fields': FIX_4_2['header_fields'],
         'required_fields': FIX_4_2['required_fields'],
         'group_fields': FIX_4_2['group_fields'],
+        'common_fields':[(50, 'TAG50'),
+                         (142, 'GB'),],
     },
 ]

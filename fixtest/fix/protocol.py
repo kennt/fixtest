@@ -133,6 +133,11 @@ class FIXProtocol(object):
         message[34] = self._send_seqno
         message[52] = format_time(send_time)
 
+        # apply any common fields
+        if 'common_fields' in self.link_config:
+            for tag, value in self.link_config['common_fields']:
+                message[tag] = value
+
         # verify required tags
         for tag in self.link_config['required_fields']:
             # these two tags are updated when generating the binary
