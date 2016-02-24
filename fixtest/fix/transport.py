@@ -226,7 +226,7 @@ class FIXTransport(internet.protocol.Protocol):
             if self.lc_task is None:
                 self.lc_task = task.LoopingCall(self.on_timer_tick_received)
                 reactor.callFromThread(self.lc_task.start,
-                                       self.protocol.heartbeat,
+                                       1,
                                        now=False)
         else:
             if self.lc_task is not None:
