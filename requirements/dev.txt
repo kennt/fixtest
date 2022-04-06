@@ -1,1 +1,1 @@
-twisted==14.0.0
+twisted==22.2.0
