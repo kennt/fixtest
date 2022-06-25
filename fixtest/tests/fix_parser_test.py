@@ -45,9 +45,9 @@ class TestFIXParserInternals(unittest.TestCase):
         """ Basic _parse_field function test """
         parser = FIXParser(self.receiver)
 
-        field = parser._parse_field('8=a')
+        field = parser._parse_field(b'8=a')
         self.assertEquals(8, field[0])
-        self.assertEquals('a', field[1])
+        self.assertEquals(b'a', field[1])
 
     def test_parse_field_bad_input(self):
         """ Test bad _parse_field inputs """
@@ -55,19 +55,19 @@ class TestFIXParserInternals(unittest.TestCase):
 
         # missing '='
         with self.assertRaises(FIXParserError):
-            parser._parse_field('abcde')
+            parser._parse_field(b'abcde')
 
         # bad tag id
         with self.assertRaises(FIXParserError):
-            parser._parse_field('a=a')
+            parser._parse_field(b'a=a')
 
         # missing tag id
         with self.assertRaises(FIXParserError):
-            parser._parse_field('=a')
+            parser._parse_field(b'=a')
 
         # bad tag id
         with self.assertRaises(FIXParserError):
-            parser._parse_field('10b=a')
+            parser._parse_field(b'10b=a')
 
 
 class TestFIXParser(unittest.TestCase):
@@ -365,8 +365,8 @@ class TestFIXParser(unittest.TestCase):
         self.assertEquals(2, len(group[0]))
         self.assertTrue(101 in group[0])
         self.assertTrue(102 in group[0])
-        self.assertEquals('a', group[0][101])
-        self.assertEquals('b', group[0][102])
+        self.assertEquals(b'a', group[0][101])
+        self.assertEquals(b'b', group[0][102])
 
     def test_multiple_groups(self):
         """ Test the receiving of multiple groups """
@@ -398,13 +398,13 @@ class TestFIXParser(unittest.TestCase):
         self.assertEquals(2, len(group[0]))
         self.assertTrue(101 in group[0])
         self.assertTrue(102 in group[0])
-        self.assertEquals('a', group[0][101])
-        self.assertEquals('b', group[0][102])
+        self.assertEquals(b'a', group[0][101])
+        self.assertEquals(b'b', group[0][102])
         self.assertEquals(2, len(group[1]))
         self.assertTrue(101 in group[1])
         self.assertTrue(102 in group[1])
-        self.assertEquals('aa', group[1][101])
-        self.assertEquals('bb', group[1][102])
+        self.assertEquals(b'aa', group[1][101])
+        self.assertEquals(b'bb', group[1][102])
 
     def test_nested_groups(self):
         """ Test the receiving of nested groups """
@@ -439,8 +439,8 @@ class TestFIXParser(unittest.TestCase):
         self.assertTrue(101 in group[0])
         self.assertTrue(102 in group[0])
         self.assertTrue(200 in group[0])
-        self.assertEquals('a', group[0][101])
-        self.assertEquals('b', group[0][102])
+        self.assertEquals(b'a', group[0][101])
+        self.assertEquals(b'b', group[0][102])
 
         subgroup = group[0]
         self.assertIsNotNone(subgroup)
@@ -450,8 +450,8 @@ class TestFIXParser(unittest.TestCase):
         self.assertEquals(2, len(subgroup200[0]))
         self.assertTrue(201 in subgroup200[0])
         self.assertTrue(202 in subgroup200[0])
-        self.assertEquals('abc', subgroup200[0][201])
-        self.assertEquals('def', subgroup200[0][202])
+        self.assertEquals(b'abc', subgroup200[0][201])
+        self.assertEquals(b'def', subgroup200[0][202])
 
     def test_multiple_message(self):
         """ Receive two messages in one data buffer """
@@ -491,8 +491,9 @@ class TestFIXParser(unittest.TestCase):
                       '919=this',
                       '955=that',
                       '10=013')
+        print(text)
         for c in text:
-            parser.on_data_received(c)
+            parser.on_data_received(c.to_bytes(1, 'big'))
 
         self.assertFalse(parser.is_parsing)
         self.assertEquals(1, self.receiver.count)
@@ -515,7 +516,7 @@ class TestFIXParser(unittest.TestCase):
 
         text = to_fix('8=FIX.4.2',
                       '9=38',
-                      '35=A') + '99=5\x01100=12'
+                      '35=A') + b'99=5\x01100=12'
         text2 = to_fix('345',
                        '919=this',
                        '955=that',
@@ -607,7 +608,7 @@ class TestFIXParser(unittest.TestCase):
         self.assertEquals(1, self.receiver.count)
 
         message = self.receiver.last_received_message
-        print message.store
+        print(message.store)
         self.assertIsNotNone(message)
         self.assertEquals(4, len(message))
 
@@ -621,14 +622,14 @@ class TestFIXParser(unittest.TestCase):
         self.assertTrue(101 in group[0])
         self.assertTrue(102 in group[0])
         self.assertTrue(200 in group[0])
-        self.assertEquals('a', group[0][101])
-        self.assertEquals('b', group[0][102])
+        self.assertEquals(b'a', group[0][101])
+        self.assertEquals(b'b', group[0][102])
         self.assertEquals(2, len(group[1]))
         self.assertTrue(101 in group[1])
         self.assertTrue(102 in group[1])
         self.assertTrue(200 not in group[1])
-        self.assertEquals('c', group[1][101])
-        self.assertEquals('d', group[1][102])
+        self.assertEquals(b'c', group[1][101])
+        self.assertEquals(b'd', group[1][102])
 
         subgroup = group[0]
         self.assertIsNotNone(subgroup)
@@ -638,9 +639,9 @@ class TestFIXParser(unittest.TestCase):
         self.assertEquals(2, len(subgroup200[0]))
         self.assertTrue(201 in subgroup200[0])
         self.assertTrue(202 in subgroup200[0])
-        self.assertEquals('abc', subgroup200[0][201])
-        self.assertEquals('def', subgroup200[0][202])
+        self.assertEquals(b'abc', subgroup200[0][201])
+        self.assertEquals(b'def', subgroup200[0][202])
         self.assertEquals(1, len(subgroup200[1]))
         self.assertTrue(201 in subgroup200[1])
         self.assertTrue(202 not in subgroup200[1])
-        self.assertEquals('zzz', subgroup200[1][201])
+        self.assertEquals(b'zzz', subgroup200[1][201])

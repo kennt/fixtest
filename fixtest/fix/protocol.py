@@ -161,7 +161,7 @@ class FIXProtocol(object):
 
         # verify the protocol version
         if 'protocol_version' in self.link_config:
-            if self.link_config['protocol_version'] != message[8]:
+            if self.link_config['protocol_version'] != message[8].decode():
                 raise FIXDataError(
                     8, 'version mismatch: expect:{0} received:{1}'.format(
                         self.link_config['protocol_version'],

@@ -12,7 +12,7 @@ def to_fix(*args):
     """ Join a series of strings into a FIX binary message,
         a field list separated by \x01
     """
-    return '\x01'.join(args) + '\x01'
+    return b'\x01'.join([x.encode('latin-1') for x in args]) + b'\x01'
 
 
 def to_ordered_dict(v):

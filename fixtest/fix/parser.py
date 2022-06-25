@@ -137,7 +137,7 @@ class FIXParser(object):
         """
         # pylint: disable=no-self-use
 
-        delim = buf.find('=')
+        delim = buf.find(b'=')
         if delim == -1:
             raise FIXParserError('Incorrect format: missing "="')
 
@@ -145,7 +145,7 @@ class FIXParser(object):
         try:
             tag_id = int(buf[:delim])
         except ValueError:
-            raise FIXParserError('Incorrect format: ID:' + buf[:delim])
+            raise FIXParserError('Incorrect format: ID:' + str(buf[:delim]))
 
         return (tag_id, buf[delim+1:])
 
@@ -320,10 +320,10 @@ class FIXParser(object):
                                                        self._checksum)
                     self.reset()
 
-        except FIXLengthTooLongError, err:
+        except FIXLengthTooLongError as err:
             self.reset(flush_buffer=True)
             self._receiver.on_error_received(err)
-        except FIXParserError, err:
+        except FIXParserError as err:
             self.reset(flush_buffer=True)
             self._receiver.on_error_received(err)
         finally:

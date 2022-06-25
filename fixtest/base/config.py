@@ -29,6 +29,7 @@
 """
 
 import copy
+import runpy
 
 
 class Config(object):
@@ -102,7 +103,13 @@ class FileConfig(Config):
                 file_name:
         """
         super(FileConfig, self).__init__()
-        execfile(file_name, globals(), self._config)
+        r = runpy.run_path(file_name, globals())
+
+        self._config['CONNECTIONS'] = r.get('CONNECTIONS')
+        self._config['ROLES'] = r.get('ROLES')
+        self._config['SECURITIES'] = r.get('SECURITIES')
+        self._config['FIX_4_2'] = r.get('Fix_4_2')
+
 
 
 class DictConfig(Config):

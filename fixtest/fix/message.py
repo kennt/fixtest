@@ -5,29 +5,37 @@
 
 """
 
-from cStringIO import StringIO
+from io import BytesIO
 import struct
 
 from fixtest.base.message import BasicMessage
 
 
 def checksum(data, starting_checksum=0):
-    """ Calculates the checksum of the message according to FIX.
+    """ Calculates the checksum of the binary message according to FIX.
 
         This does not do any filtering of the data, so do not
         calculate this with field 10 included.
     """
     chksum = starting_checksum
-    for c in data:
-        chksum = (chksum + struct.unpack('B', c)[0]) % 256
+    for b in data:
+        chksum = (chksum + b) % 256
 
     return chksum
 
 
 def _single_field(tag, value):
-    """ Returns a string in the form of "tag=value\x01"
+    """ Returns byte string in the form of "tag=value\x01"
     """
-    return str(tag) + '=' + str(value) + b'\x01'
+    io = BytesIO()
+
+    io.write(str.encode(f"{tag}="))
+    if isinstance(value, bytes):
+        io.write(value)
+    else:
+        io.write(str(value).encode('latin-1'))
+    io.write(b'\x01')
+    return io.getvalue()
 
 
 def _write_single_field(output, tag, value):
@@ -52,11 +60,11 @@ def _write_field(output, tag, value):
             tag: The ID portion.
             value: The value portion.  This may be a nested group.
     """
-    if hasattr(value, '__iter__'):
+    if isinstance(value, list):
         # write out the number of subgroups
         _write_single_field(output, tag, len(value))
         for subgroup in value:
-            for k, v in subgroup.iteritems():
+            for k, v in subgroup.items():
                 _write_field(output, k, v)
     else:
         _write_single_field(output, tag, value)
@@ -113,6 +121,8 @@ class FIXMessage(BasicMessage):
 
             Returns: a string containing the value of the tag 35 field.
         """
+        if isinstance(self[35], bytes):
+            return self[35].decode()
         return self[35]
 
     def to_binary(self, **kwargs):
@@ -138,7 +148,7 @@ class FIXMessage(BasicMessage):
         excludes = {int(k): True for k in kwargs['exclude']} \
             if 'exclude' in kwargs else None
 
-        output = StringIO()
+        output = BytesIO()
 
         for k, v in self.items():
             if includes is not None and k not in includes:
@@ -182,12 +192,26 @@ class FIXMessage(BasicMessage):
             Returns: True if the conditions are satisifed.
                 False otherwise.
         """
+
+        def _compare(f1, f2):
+            v1 = f1
+            v2 = f2
+            if not isinstance(v1, bytes):
+                v1 = f1.encode('latin-1')
+            if not isinstance(v2, bytes):
+                v2 = f2.encode('latin-1')
+            return v1 == v2
+
+
         fields = fields or list()
         exists = exists or list()
         not_exists = not_exists or list()
 
         for field in fields:
-            if field[0] not in self or str(self[field[0]]) != str(field[1]):
+            if field[0] not in self:
+                return False
+
+            if not _compare(self[field[0]], field[1]):
                 return False
 
         for tag in exists:

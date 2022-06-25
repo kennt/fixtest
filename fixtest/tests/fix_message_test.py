@@ -18,12 +18,12 @@ class TestFIXMessage(unittest.TestCase):
 
     def test_to_fix(self):
         data = to_fix('a', 'b', 'c')
-        self.assertEquals('a\x01b\x01c\x01', data)
+        self.assertEquals(b'a\x01b\x01c\x01', data)
 
     def test_checksum(self):
-        self.assertEquals(1, checksum('\x01'))
-        self.assertEquals(2, checksum('\x01\x01'))
-        self.assertEquals(2, checksum('\xFF\x03'))
+        self.assertEquals(1, checksum(b'\x01'))
+        self.assertEquals(2, checksum(b'\x01\x01'))
+        self.assertEquals(2, checksum(b'\xFF\x03'))
 
         # example taken from wikipedia
         self.assertEquals(62,
