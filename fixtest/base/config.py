@@ -23,7 +23,7 @@
     Each configuration object is a normal Python dict().  However, they
     can be sourced from anywhere.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -32,12 +32,12 @@ import copy
 import runpy
 
 
-class Config(object):
+class Config:
     """ Base class for all configuration objects.  Usually the
         derived classes will setup the self._config dict().
     """
     def __init__(self):
-        self._config = dict()
+        self._config = {}
 
     def get_role(self, role_name):
         """ Returns the configuration for the given role.
@@ -102,14 +102,13 @@ class FileConfig(Config):
             Args:
                 file_name:
         """
-        super(FileConfig, self).__init__()
-        r = runpy.run_path(file_name, globals())
+        super().__init__()
+        new_globals = runpy.run_path(file_name, globals())
 
-        self._config['CONNECTIONS'] = r.get('CONNECTIONS')
-        self._config['ROLES'] = r.get('ROLES')
-        self._config['SECURITIES'] = r.get('SECURITIES')
-        self._config['FIX_4_2'] = r.get('Fix_4_2')
-
+        self._config['CONNECTIONS'] = new_globals.get('CONNECTIONS')
+        self._config['ROLES'] = new_globals.get('ROLES')
+        self._config['SECURITIES'] = new_globals.get('SECURITIES')
+        self._config['FIX_4_2'] = new_globals.get('Fix_4_2')
 
 
 class DictConfig(Config):
@@ -121,5 +120,5 @@ class DictConfig(Config):
             Args:
                 initial_config
         """
-        super(DictConfig, self).__init__()
+        super().__init__()
         self._config = initial_config

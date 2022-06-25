@@ -1,6 +1,6 @@
 """ fix.protocol unit tests
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -20,7 +20,7 @@ from fixtest.tests.utils import to_fix
 
 class TestFIXProtocol(unittest.TestCase):
 
-    class MockFIXTransport(object):
+    class MockFIXTransport:
         def __init__(self):
             self.protocol = None
             self.message_received_count = 0
@@ -45,7 +45,7 @@ class TestFIXProtocol(unittest.TestCase):
             self.timeout_received_count += 1
 
     def __init__(self, *args, **kwargs):
-        super(TestFIXProtocol, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.protocol = None
         self.transport = None
@@ -75,7 +75,7 @@ class TestFIXProtocol(unittest.TestCase):
                                                   '49=server',
                                                   '56=client',
                                                   '10=152'))
-        self.assertEquals(8, context.exception.reference_id)
+        self.assertEqual(8, context.exception.reference_id)
 
     def test_bad_length(self):
         """ Send a message with an incorrect length field (9). """
@@ -86,7 +86,7 @@ class TestFIXProtocol(unittest.TestCase):
                                                   '49=server',
                                                   '56=client',
                                                   '10=000'))
-        self.assertEquals(9, context.exception.reference_id)
+        self.assertEqual(9, context.exception.reference_id)
 
     def test_bad_checksum(self):
         """ Send a message with an incorrect checksum field (10). """
@@ -97,7 +97,7 @@ class TestFIXProtocol(unittest.TestCase):
                                                   '49=server',
                                                   '56=client',
                                                   '10=000'))
-        self.assertEquals(10, context.exception.reference_id)
+        self.assertEqual(10, context.exception.reference_id)
 
     def test_missing_required_fields(self):
         """ Test for missing required fields """
@@ -106,7 +106,7 @@ class TestFIXProtocol(unittest.TestCase):
                                                   '9=5',
                                                   '49=s',
                                                   '10=233'))
-        self.assertEquals(35, context.exception.reference_id)
+        self.assertEqual(35, context.exception.reference_id)
 
     def test_header_fields_in_order(self):
         """ Test for out-of-order header fields """
@@ -120,15 +120,16 @@ class TestFIXProtocol(unittest.TestCase):
 
         # the order should be restored because the header fields will
         # have been pre-added.
-        self.assertEquals(5, len(items))
-        self.assertEquals(8, items[0][0])
-        self.assertEquals(9, items[1][0])
-        self.assertEquals(35, items[2][0])
-        self.assertEquals(49, items[3][0])
-        self.assertEquals(10, items[4][0])
+        self.assertEqual(5, len(items))
+        self.assertEqual(8, items[0][0])
+        self.assertEqual(9, items[1][0])
+        self.assertEqual(35, items[2][0])
+        self.assertEqual(49, items[3][0])
+        self.assertEqual(10, items[4][0])
 
     def test_send_heartbeat(self):
         """ Test heartbeat sending """
+        # pylint: disable=protected-access
         now = datetime.datetime.now() - datetime.timedelta(seconds=1)
         self.protocol._last_send_time = now - datetime.timedelta(minutes=1)
         self.protocol._last_received_time = now
@@ -138,18 +139,19 @@ class TestFIXProtocol(unittest.TestCase):
         self.protocol.heartbeat = 5     # time in secs
         self.protocol.filter_heartbeat = False
 
-        self.assertEquals(0, self.transport.message_sent_count)
+        self.assertEqual(0, self.transport.message_sent_count)
 
         self.protocol.on_timer_tick_received()
 
-        self.assertEquals(1, self.transport.message_sent_count)
+        self.assertEqual(1, self.transport.message_sent_count)
         message = self.transport.last_message_sent
         self.assertIsNotNone(message)
-        self.assertEquals(FIX.HEARTBEAT, message.msg_type())
-        self.assertNotEquals(last_time, self.protocol._last_send_time)
+        self.assertEqual(FIX.HEARTBEAT, message.msg_type())
+        self.assertNotEqual(last_time, self.protocol._last_send_time)
 
     def test_receive_heartbeat(self):
         """ Test receiving heartbeat """
+        # pylint: disable=protected-access
         now = datetime.datetime.now() - datetime.timedelta(seconds=2)
         self.protocol._last_send_time = now
         self.protocol._last_received_time = now
@@ -161,11 +163,12 @@ class TestFIXProtocol(unittest.TestCase):
                                               '9=5',
                                               '35=0',
                                               '10=161'))
-        self.assertEquals(1, self.transport.message_received_count)
-        self.assertNotEquals(last_time, self.protocol._last_received_time)
+        self.assertEqual(1, self.transport.message_received_count)
+        self.assertNotEqual(last_time, self.protocol._last_received_time)
 
     def test_filter_heartbeat(self):
         """ Test heartbeat filtering """
+        # pylint: disable=protected-access
         now = datetime.datetime.now() - datetime.timedelta(seconds=1)
         self.protocol._last_send_time = now - datetime.timedelta(minutes=1)
         self.protocol._last_received_time = now
@@ -180,11 +183,12 @@ class TestFIXProtocol(unittest.TestCase):
                                               '35=0',
                                               '10=161'))
 
-        self.assertEquals(0, self.transport.message_received_count)
-        self.assertNotEquals(last_time, self.protocol._last_received_time)
+        self.assertEqual(0, self.transport.message_received_count)
+        self.assertNotEqual(last_time, self.protocol._last_received_time)
 
     def test_send_testrequest(self):
         """ TestRequest sending """
+        # pylint: disable=protected-access
         now = datetime.datetime.now() - datetime.timedelta(seconds=1)
         self.protocol._last_received_time = now - datetime.timedelta(minutes=1)
         self.protocol._last_send_time = now
@@ -194,18 +198,19 @@ class TestFIXProtocol(unittest.TestCase):
         self.protocol.heartbeat = 5     # time in secs
         self.protocol.filter_heartbeat = False
 
-        self.assertEquals(0, self.transport.message_sent_count)
+        self.assertEqual(0, self.transport.message_sent_count)
 
         self.protocol.on_timer_tick_received()
 
-        self.assertEquals(1, self.transport.message_sent_count)
+        self.assertEqual(1, self.transport.message_sent_count)
         message = self.transport.last_message_sent
         self.assertIsNotNone(message)
-        self.assertEquals(FIX.TEST_REQUEST, message.msg_type())
-        self.assertNotEquals(last_time, self.protocol._last_send_time)
+        self.assertEqual(FIX.TEST_REQUEST, message.msg_type())
+        self.assertNotEqual(last_time, self.protocol._last_send_time)
 
     def test_receive_testrequest(self):
         """ Test receiving testrequest """
+        # pylint: disable=protected-access
         now = datetime.datetime.now() - datetime.timedelta(seconds=2)
         self.protocol._last_send_time = now
         self.protocol._last_received_time = now
@@ -218,11 +223,12 @@ class TestFIXProtocol(unittest.TestCase):
                                               '35=1',
                                               '112=tr1',
                                               '10=186'))
-        self.assertEquals(1, self.transport.message_received_count)
-        self.assertNotEquals(last_time, self.protocol._last_received_time)
+        self.assertEqual(1, self.transport.message_received_count)
+        self.assertNotEqual(last_time, self.protocol._last_received_time)
 
     def test_filter_testrequest(self):
         """ Test testrequest filtering """
+        # pylint: disable=protected-access
         now = datetime.datetime.now() - datetime.timedelta(seconds=1)
         self.protocol._last_send_time = now - datetime.timedelta(minutes=1)
         self.protocol._last_received_time = now
@@ -238,11 +244,12 @@ class TestFIXProtocol(unittest.TestCase):
                                               '112=tr1',
                                               '10=186'))
 
-        self.assertEquals(0, self.transport.message_received_count)
-        self.assertNotEquals(last_time, self.protocol._last_received_time)
+        self.assertEqual(0, self.transport.message_received_count)
+        self.assertNotEqual(last_time, self.protocol._last_received_time)
 
     def test_timeout(self):
         """ TestRequest timeout testing """
+        # pylint: disable=protected-access
         self.protocol.heartbeat = 5     # time in secs
         now = datetime.datetime.now()
 
@@ -256,30 +263,31 @@ class TestFIXProtocol(unittest.TestCase):
 
     def test_simple_send(self):
         """ test simple sending """
-        self.assertEquals(0, self.transport.message_sent_count)
+        self.assertEqual(0, self.transport.message_sent_count)
         self.transport.send_message(FIXMessage(source=[(8, 'FIX.4.2'),
                                                        (35, 'A'), ]))
-        self.assertEquals(1, self.transport.message_sent_count)
+        self.assertEqual(1, self.transport.message_sent_count)
 
     def test_send_seqno(self):
         """ test send sequence numbering """
+        # pylint: disable=protected-access
         seqno = self.protocol._send_seqno
-        self.assertEquals(0, self.transport.message_sent_count)
+        self.assertEqual(0, self.transport.message_sent_count)
         self.transport.send_message(FIXMessage(source=[(8, 'FIX.4.2'),
                                                        (35, 'A'), ]))
-        self.assertEquals(1, self.transport.message_sent_count)
-        self.assertEquals(seqno+1, self.protocol._send_seqno)
+        self.assertEqual(1, self.transport.message_sent_count)
+        self.assertEqual(seqno+1, self.protocol._send_seqno)
 
     def test_send_with_missing_fields(self):
         """ send with missing fields """
-        self.assertEquals(0, self.transport.message_sent_count)
+        self.assertEqual(0, self.transport.message_sent_count)
 
         message = FIXMessage(source=[(8, 'FIX.4.2'),
                                      (35, 'A'), ])
         self.assertTrue(34 not in message)
         self.assertTrue(52 not in message)
         self.transport.send_message(message)
-        self.assertEquals(1, self.transport.message_sent_count)
+        self.assertEqual(1, self.transport.message_sent_count)
 
         # check for seqno(34) and sendtime(52)
         self.assertTrue(34 in self.transport.last_message_sent)

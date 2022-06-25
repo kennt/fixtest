@@ -1,6 +1,6 @@
 """ Utilities module
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -19,13 +19,13 @@ def flatten(container):
         is added to the list of items, followed by
         (k, v[0]), (k, v[1]), ...
     """
-    items = list()
-    for k, v in container.items():
-        if isinstance(v, collections.MutableMapping):
-            items.append((k, len(v)))
-            items.extend(flatten(v))
+    items = []
+    for key, value in container.items():
+        if isinstance(value, collections.MutableMapping):
+            items.append((key, len(value)))
+            items.extend(flatten(value))
         else:
-            items.append((k, v))
+            items.append((key, value))
     return items
 
 
@@ -43,7 +43,7 @@ def format_time(input_datetime):
 
 def format_message(message):
     """ Formats a FIX message for easier reading """
-    return ', '.join(["{0}={1}".format(k, v) for k, v in flatten(message)])
+    return ', '.join([f"{k}={v}" for k, v in flatten(message)])
 
 
 def log_message(log, header, message, text):

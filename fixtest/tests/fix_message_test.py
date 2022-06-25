@@ -1,6 +1,6 @@
 """ fix.message unit tests
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -18,28 +18,28 @@ class TestFIXMessage(unittest.TestCase):
 
     def test_to_fix(self):
         data = to_fix('a', 'b', 'c')
-        self.assertEquals(b'a\x01b\x01c\x01', data)
+        self.assertEqual(b'a\x01b\x01c\x01', data)
 
     def test_checksum(self):
-        self.assertEquals(1, checksum(b'\x01'))
-        self.assertEquals(2, checksum(b'\x01\x01'))
-        self.assertEquals(2, checksum(b'\xFF\x03'))
+        self.assertEqual(1, checksum(b'\x01'))
+        self.assertEqual(2, checksum(b'\x01\x01'))
+        self.assertEqual(2, checksum(b'\xFF\x03'))
 
         # example taken from wikipedia
-        self.assertEquals(62,
-                          checksum(to_fix('8=FIX.4.2',
-                                          '9=65',
-                                          '35=A',
-                                          '49=SERVER',
-                                          '56=CLIENT',
-                                          '34=177',
-                                          '52=20090107-18:15:16',
-                                          '98=0',
-                                          '108=30')))
+        self.assertEqual(62,
+                         checksum(to_fix('8=FIX.4.2',
+                                         '9=65',
+                                         '35=A',
+                                         '49=SERVER',
+                                         '56=CLIENT',
+                                         '34=177',
+                                         '52=20090107-18:15:16',
+                                         '98=0',
+                                         '108=30')))
 
     def test_header_fields(self):
         mess = FIXMessage()
-        self.assertEquals(5, len(mess))
+        self.assertEqual(5, len(mess))
 
         self.assertTrue(8 in mess)
         self.assertTrue(9 in mess)
@@ -47,10 +47,10 @@ class TestFIXMessage(unittest.TestCase):
         self.assertTrue(49 in mess)
         self.assertTrue(56 in mess)
 
-        items = [(k, v) for k, v in mess.items()]
+        items = list(mess.items())
         # 8,9 are required to be first and second fields, respectively
-        self.assertEquals(8, items[0][0])
-        self.assertEquals(9, items[1][0])
+        self.assertEqual(8, items[0][0])
+        self.assertEqual(9, items[1][0])
 
         # Custom required fields
         mess = FIXMessage(header_fields=[1024, 8, 9])
@@ -59,19 +59,19 @@ class TestFIXMessage(unittest.TestCase):
         self.assertTrue(35 not in mess)
         self.assertTrue(1024 in mess)
 
-        items = [(k, v) for k, v in mess.items()]
-        self.assertEquals(1024, items[0][0])
-        self.assertEquals(8, items[1][0])
-        self.assertEquals(9, items[2][0])
+        items = list(mess.items())
+        self.assertEqual(1024, items[0][0])
+        self.assertEqual(8, items[1][0])
+        self.assertEqual(9, items[2][0])
 
     def test_msg_type(self):
         mess = FIXMessage()
-        self.assertEquals('', mess[35])
-        self.assertEquals('', mess.msg_type())
+        self.assertEqual('', mess[35])
+        self.assertEqual('', mess.msg_type())
 
         mess[35] = FIX.LOGON
-        self.assertEquals(FIX.LOGON, mess[35])
-        self.assertEquals(FIX.LOGON, mess.msg_type())
+        self.assertEqual(FIX.LOGON, mess[35])
+        self.assertEqual(FIX.LOGON, mess.msg_type())
 
     def test_to_binary(self):
         mess = FIXMessage()
@@ -90,20 +90,20 @@ class TestFIXMessage(unittest.TestCase):
 
         # BodyLength(9) and Checksum(10) should be updated after
         # the to_binary() was called.
-        self.assertEquals('65', mess[9])
-        self.assertEquals('062', mess[10])
+        self.assertEqual('65', mess[9])
+        self.assertEqual('062', mess[10])
 
-        self.assertEquals(to_fix('8=FIX.4.2',
-                                 '9=65',
-                                 '35=A',
-                                 '49=SERVER',
-                                 '56=CLIENT',
-                                 '34=177',
-                                 '52=20090107-18:15:16',
-                                 '98=0',
-                                 '108=30',
-                                 '10=062'),
-                          data)
+        self.assertEqual(to_fix('8=FIX.4.2',
+                                '9=65',
+                                '35=A',
+                                '49=SERVER',
+                                '56=CLIENT',
+                                '34=177',
+                                '52=20090107-18:15:16',
+                                '98=0',
+                                '108=30',
+                                '10=062'),
+                         data)
 
     def test_to_binary_include(self):
         mess = FIXMessage()
@@ -115,12 +115,12 @@ class TestFIXMessage(unittest.TestCase):
         mess[177] = 'hello'
 
         data = mess.to_binary(include=[8, 9, 35, 177])
-        self.assertEquals(to_fix('8=FIX.4.2',
-                                 '9=15',
-                                 '35=A',
-                                 '177=hello',
-                                 '10=212'),
-                          data)
+        self.assertEqual(to_fix('8=FIX.4.2',
+                                '9=15',
+                                '35=A',
+                                '177=hello',
+                                '10=212'),
+                         data)
 
     def test_to_binary_exclude(self):
         mess = FIXMessage()
@@ -133,13 +133,13 @@ class TestFIXMessage(unittest.TestCase):
         mess[177] = 'hello'
 
         data = mess.to_binary(exclude=[35, 177])
-        self.assertEquals(to_fix('8=FIX.4.2',
-                                 '9=25',
-                                 '49=SERVER',
-                                 '56=CLIENT',
-                                 '99=X',
-                                 '10=239'),
-                          data)
+        self.assertEqual(to_fix('8=FIX.4.2',
+                                '9=25',
+                                '49=SERVER',
+                                '56=CLIENT',
+                                '99=X',
+                                '10=239'),
+                         data)
 
     def test_to_binary_group(self):
         """ Call to_binary() on a grouped message """
@@ -153,13 +153,13 @@ class TestFIXMessage(unittest.TestCase):
         mess[100] = [tags, ]
         data = mess.to_binary()
 
-        self.assertEquals(to_fix('8=FIX.4.2',
-                                 '9=21',
-                                 '100=1',
-                                 '110=2',
-                                 '111=abcd',
-                                 '10=086'),
-                          data)
+        self.assertEqual(to_fix('8=FIX.4.2',
+                                '9=21',
+                                '100=1',
+                                '110=2',
+                                '111=abcd',
+                                '10=086'),
+                         data)
 
     def test_group_from_list(self):
         """ Call to_binary() on a grouped message from a list """
@@ -169,13 +169,13 @@ class TestFIXMessage(unittest.TestCase):
                                   (49, 'SERVER'),
                                   (56, 'CLIENT'),
                                   (99, 'X')])
-        self.assertEquals(to_fix('8=FIX.4.2',
-                                 '9=25',
-                                 '49=SERVER',
-                                 '56=CLIENT',
-                                 '99=X',
-                                 '10=239'),
-                          mess.to_binary())
+        self.assertEqual(to_fix('8=FIX.4.2',
+                                '9=25',
+                                '49=SERVER',
+                                '56=CLIENT',
+                                '99=X',
+                                '10=239'),
+                         mess.to_binary())
 
     def test_nested_group_from_list(self):
         """ Call to_binary() on a nested grouped message from a list """
@@ -190,20 +190,20 @@ class TestFIXMessage(unittest.TestCase):
                                            {101: 'mno', 200: [
                                                {201: 'aaa', 202: 'bbb'}]}]),
                                     (99, 'X')]))
-        self.assertEquals(to_fix('8=FIX.4.2',
-                                 '9=73',
-                                 '100=3',
-                                 '101=abc',
-                                 '102=def',
-                                 '101=ghi',
-                                 '103=jkl',
-                                 '101=mno',
-                                 '200=1',
-                                 '201=aaa',
-                                 '202=bbb',
-                                 '99=X',
-                                 '10=034'),
-                          mess.to_binary())
+        self.assertEqual(to_fix('8=FIX.4.2',
+                                '9=73',
+                                '100=3',
+                                '101=abc',
+                                '102=def',
+                                '101=ghi',
+                                '103=jkl',
+                                '101=mno',
+                                '200=1',
+                                '201=aaa',
+                                '202=bbb',
+                                '99=X',
+                                '10=034'),
+                         mess.to_binary())
 
     def test_to_binary_binarydata(self):
         mess = FIXMessage(header_fields=[8, 9])
@@ -214,12 +214,12 @@ class TestFIXMessage(unittest.TestCase):
 
         data = mess.to_binary()
 
-        self.assertEquals(to_fix('8=FIX.4.2',
-                                 '9=18',
-                                 '110=2',
-                                 '111=\x01\x02a\xbbbcd',
-                                 '10=026'),
-                          data)
+        self.assertEqual(to_fix('8=FIX.4.2',
+                                '9=18',
+                                '110=2',
+                                '111=\x01\x02a\xbbbcd',
+                                '10=026'),
+                         data)
 
     def test_verify(self):
         mess = FIXMessage()
@@ -243,6 +243,7 @@ class TestFIXMessage(unittest.TestCase):
         self.assertTrue(mess.verify(fields=[(99, 'X')],
                                     exists=[56, 99, 177],
                                     not_exists=[2001, 2002, 2003]))
+
 
 if __name__ == '__main__':
     unittest.main()

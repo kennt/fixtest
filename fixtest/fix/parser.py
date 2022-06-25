@@ -1,6 +1,6 @@
 """ FIX parser class - responsible for FIX decoding
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -15,7 +15,7 @@ from fixtest.fix.message import FIXMessage, checksum
 class FIXParserError(ValueError):
     """ Exception: FIX Message is not in proper FIX format. """
     def __init__(self, message):
-        super(FIXParserError, self).__init__()
+        super().__init__()
         self.message = message
 
     def __str__(self):
@@ -25,14 +25,14 @@ class FIXParserError(ValueError):
 class FIXLengthTooLongError(ValueError):
     """ Exception: FIX message too long. """
     def __init__(self, message):
-        super(FIXLengthTooLongError, self).__init__()
+        super().__init__()
         self.message = message
 
     def __str__(self):
         return self.message
 
 
-class FIXParser(object):
+class FIXParser:
     """ Implements the core decoding of FIX messages.  The encoding
         portion is taken up by the FIXMessage itself.
 
@@ -87,8 +87,8 @@ class FIXParser(object):
 
         self._receiver = receiver
         self._header_fields = kwargs.get('header_fields', [8, 9, 35, 49, 56])
-        self._binary_fields = kwargs.get('binary_fields', list())
-        self._group_fields = kwargs.get('group_fields', list())
+        self._binary_fields = kwargs.get('binary_fields', [])
+        self._group_fields = kwargs.get('group_fields', [])
         self._max_length = kwargs.get('max_length', 2048)
         self._debug = kwargs.get('debug', False)
 
@@ -104,7 +104,7 @@ class FIXParser(object):
         self._binary_tag = 0
 
         # used for groups processing
-        self._level_stack = list()
+        self._level_stack = []
 
         self._logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class FIXParser(object):
         self._binary_tag = 0
 
         # used for groups processing
-        self._level_stack = list()
+        self._level_stack = []
 
         if flush_buffer:
             self._buffer = b''
@@ -144,8 +144,9 @@ class FIXParser(object):
         tag_id = 0
         try:
             tag_id = int(buf[:delim])
-        except ValueError:
-            raise FIXParserError('Incorrect format: ID:' + str(buf[:delim]))
+        except ValueError as err:
+            raise FIXParserError(f'Incorrect format: ID:{str(buf[:delim])}') \
+                from err
 
         return (tag_id, buf[delim+1:])
 
@@ -156,7 +157,7 @@ class FIXParser(object):
             self._message_length += len(field) + 1
         if self._message_length >= self._max_length:
             raise FIXLengthTooLongError(
-                'message too long: {0}'.format(self._message_length))
+                f'message too long: {self._message_length}')
 
     def _update_checksum(self, field, tag_id, value):
         """ Update the message checksum calculations """
@@ -167,6 +168,7 @@ class FIXParser(object):
     def _update_binary(self, field, tag_id, value):
         """ Update the binary field processing internals """
         # Are we processing a binary tag?
+        # pylint: disable=consider-using-f-string
         if self._binary_tag == 0:
             if tag_id in self._binary_fields:
                 self._binary_length = len(str(tag_id + 1)) + int(value)
@@ -181,8 +183,7 @@ class FIXParser(object):
             # Is this the wrong tag?
             if tag_id != (self._binary_tag + 1):
                 raise FIXParserError(
-                    'expected binary tag {0} found {1}'.format(
-                        self._binary_tag + 1, tag_id))
+                    f'expected binary tag {self._binary_tag+1} found {tag_id}')
             if len(field) != self._binary_length + 1:
                 raise FIXParserError(
                     'binary length: expected {0} found {1}'.format(
@@ -201,7 +202,7 @@ class FIXParser(object):
             # exist since we haven't read any information in yet.
             self._level_stack.append({
                 'tag_id': tag_id,
-                'list': list(),
+                'list': [],
                 'group': None,
                 })
 
@@ -301,7 +302,7 @@ class FIXParser(object):
 
                 if self._debug:
                     log_text(self._logger.debug, None,
-                             "tag {0} = {1}".format(tag_id, repr(value)))
+                             f"tag {tag_id} = {repr(value)}")
 
                 self._update_length(field, tag_id, value)
                 self._update_checksum(field, tag_id, value)

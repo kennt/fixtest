@@ -1,24 +1,23 @@
 """ Message queue - responsible for managing a queue of Messages.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
 
 import datetime
 import logging
-import Queue
-import sys
+import queue
 
-from fixtest.base import TimeoutError, TestInterruptedError
+from fixtest.base import FixtestTimeoutError, FixtestTestInterruptedError
 
 
-class MessageQueue(Queue.Queue):
+class MessageQueue(queue.Queue):
     """ Provides a thread-safe message queue.
     """
 
     def __init__(self, name):
-        Queue.Queue.__init__(self)
+        super().__init__()
 
         self._name = name
 
@@ -49,13 +48,13 @@ class MessageQueue(Queue.Queue):
                     performing.
                 timeout: The timeout period (in seconds) to wait
                     for.  If a message has not been received in
-                    timeout seconds, a TimeoutError will be
+                    timeout seconds, a FixtestTimeoutError will be
                     raised.
 
             Returns: a message
 
             Raises:
-                TimeoutError:
+                FixtestTimeoutError:
                 TestInterruptedError
         """
         start = datetime.datetime.now()
@@ -63,14 +62,14 @@ class MessageQueue(Queue.Queue):
 
         while message is None:
             if (datetime.datetime.now() - start).seconds > timeout:
-                raise TimeoutError('message timeout: ' + title)
+                raise FixtestTimeoutError(f'message timeout: {title}')
             if self._is_cancelled:
-                raise TestInterruptedError('test cancelled')
+                raise FixtestTestInterruptedError('test cancelled')
 
             try:
                 message = self.get(True, timeout=1.0)
-            except Queue.Empty:
+            except queue.Empty:
                 # if empty keep on cycling
-                sys.exc_clear()
+                pass
 
         return message

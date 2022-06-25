@@ -1,12 +1,12 @@
 """ FIX protocol constants (message types)
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
 
 
-class FIX(object):
+class FIX:
     """Provides constants for the FIX MsgType field (tag: 35)
     """
 

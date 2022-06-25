@@ -1,6 +1,6 @@
 """ Base client/server controller for testing.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -73,7 +73,6 @@ class BaseClientServerController(TestCaseController):
         self._clients[client['name']] = client
 
         self._logger = logging.getLogger(__name__)
-
 
     def clients(self):
         """ The clients that need to be started """

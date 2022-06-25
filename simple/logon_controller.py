@@ -76,7 +76,6 @@ class LogonController(TestCaseController):
 
         self._logger = logging.getLogger(__name__)
 
-
     def clients(self):
         """ The clients that need to be started """
         return self._clients

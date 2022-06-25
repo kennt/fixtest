@@ -1,12 +1,11 @@
 """ FIX message container classes
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
 
 from io import BytesIO
-import struct
 
 from fixtest.base.message import BasicMessage
 
@@ -18,8 +17,8 @@ def checksum(data, starting_checksum=0):
         calculate this with field 10 included.
     """
     chksum = starting_checksum
-    for b in data:
-        chksum = (chksum + b) % 256
+    for bval in data:
+        chksum = (chksum + bval) % 256
 
     return chksum
 
@@ -27,15 +26,15 @@ def checksum(data, starting_checksum=0):
 def _single_field(tag, value):
     """ Returns byte string in the form of "tag=value\x01"
     """
-    io = BytesIO()
+    iobuf = BytesIO()
 
-    io.write(str.encode(f"{tag}="))
+    iobuf.write(str.encode(f"{tag}="))
     if isinstance(value, bytes):
-        io.write(value)
+        iobuf.write(value)
     else:
-        io.write(str(value).encode('latin-1'))
-    io.write(b'\x01')
-    return io.getvalue()
+        iobuf.write(str(value).encode('latin-1'))
+    iobuf.write(b'\x01')
+    return iobuf.getvalue()
 
 
 def _write_single_field(output, tag, value):
@@ -64,8 +63,8 @@ def _write_field(output, tag, value):
         # write out the number of subgroups
         _write_single_field(output, tag, len(value))
         for subgroup in value:
-            for k, v in subgroup.items():
-                _write_field(output, k, v)
+            for key, val in subgroup.items():
+                _write_field(output, key, val)
     else:
         _write_single_field(output, tag, value)
 
@@ -98,7 +97,7 @@ class FIXMessage(BasicMessage):
                     This setting only affects to_binary(), the input order
                     is not validated here.
         """
-        super(FIXMessage, self).__init__()
+        super().__init__()
 
         # Preinsert header fields
         header = kwargs.get('header_fields', [8, 9, 35, 49, 56])
@@ -144,24 +143,24 @@ class FIXMessage(BasicMessage):
                 FIX on-the-wire format.
         """
         includes = {int(k): True for k in kwargs['include']} \
-            if 'include' in kwargs else None
+            if 'include' in kwargs else {}
         excludes = {int(k): True for k in kwargs['exclude']} \
-            if 'exclude' in kwargs else None
+            if 'exclude' in kwargs else {}
 
         output = BytesIO()
 
-        for k, v in self.items():
-            if includes is not None and k not in includes:
+        for key, val in self.items():
+            if len(includes) > 0 and key not in includes:
                 continue
-            if excludes is not None and k in excludes:
+            if len(excludes) > 0 and key in excludes:
                 continue
 
             # Generate the binary without these fields
-            if k in {8, 9, 10}:
+            if key in {8, 9, 10}:
                 continue
 
             # write a field out, this may be a grouped value
-            _write_field(output, k, v)
+            _write_field(output, key, val)
 
         mess = output.getvalue()
 
@@ -173,7 +172,7 @@ class FIXMessage(BasicMessage):
         # calc and append the 10 (CheckSum)
         if 10 in self:
             del self[10]
-        self[10] = '%03d' % checksum(mess)
+        self[10] = f'{checksum(mess):03d}'
         return mess + _single_field(10, self[10])
 
     def verify(self, fields=None, exists=None, not_exists=None):
@@ -193,19 +192,18 @@ class FIXMessage(BasicMessage):
                 False otherwise.
         """
 
-        def _compare(f1, f2):
-            v1 = f1
-            v2 = f2
-            if not isinstance(v1, bytes):
-                v1 = f1.encode('latin-1')
-            if not isinstance(v2, bytes):
-                v2 = f2.encode('latin-1')
-            return v1 == v2
+        def _compare(field1, field2):
+            value1 = field1
+            value2 = field2
+            if not isinstance(value1, bytes):
+                value1 = value1.encode('latin-1')
+            if not isinstance(value2, bytes):
+                value2 = value2.encode('latin-1')
+            return value1 == value2
 
-
-        fields = fields or list()
-        exists = exists or list()
-        not_exists = not_exists or list()
+        fields = fields or []
+        exists = exists or []
+        not_exists = not_exists or []
 
         for field in fields:
             if field[0] not in self:

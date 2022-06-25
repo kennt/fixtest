@@ -1,6 +1,6 @@
 """ The base class for all test case controllers.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -11,11 +11,11 @@ import time
 from twisted.internet import reactor
 from twisted.internet.endpoints import connectProtocol, clientFromString
 
-from fixtest.base import TestInterruptedError, TimeoutError
+from fixtest.base import FixtestTestInterruptedError, FixtestTimeoutError
 from fixtest.base.utils import log_text
 
 
-class TestCaseController(object):
+class TestCaseController:
     """ This is the base class that is used to run an individual
         test case.
 
@@ -62,6 +62,7 @@ class TestCaseController(object):
         """ Runs the test.  This is the entrypoint from the
             TestCaseController.
         """
+        # pylint: disable=broad-except
         try:
             if not self.pre_test():
                 self.test_status = 'test: failed pre-test conditions'
@@ -74,13 +75,13 @@ class TestCaseController(object):
 
             self.test_status = 'ok'
             self.exit_value = 0
-        except AssertionError, err:
+        except AssertionError as err:
             self.test_status = 'fail: assert failed : ' + str(err)
-        except TestInterruptedError:
+        except FixtestTestInterruptedError:
             self.test_status = 'fail: test cancelled'
-        except TimeoutError, err:
+        except FixtestTimeoutError as err:
             self.test_status = 'fail: timeout : ' + str(err)
-        except:
+        except Exception:
             self.test_status = 'fail: exception'
             self._logger.exception('fail: exception')
         finally:
@@ -136,14 +137,16 @@ class TestCaseController(object):
             Arguments:
                 client: The client dict().
         """
+        # pylint: disable=consider-using-f-string
         log_text(self._logger.info, None,
                  'client:{0} attempting {1}:{2}'.format(
                      client['name'],
                      client['host'],
                      client['port']))
-        endpoint = clientFromString(
-            reactor, b"tcp:{0}:{1}:timeout=10".format(client['host'],
-                                                      client['port']))
+
+        str_send = f"tcp:{client['host']}:{client['port']}:timeout=10"
+        endpoint = clientFromString(reactor, str_send.encode('latin-1'))
+
         node = client['node']
         deferred = connectProtocol(endpoint, node)
         deferred.addCallbacks(node.client_success,
@@ -158,8 +161,8 @@ class TestCaseController(object):
                 timeout:
 
             Raises:
-                TimeoutError
-                TestInterruptedError
+                FixtestTimeoutError
+                FixtestTestInterruptedError
         """
         for client in self.clients().values():
             reactor.callFromThread(self._start_client, client)
@@ -167,9 +170,9 @@ class TestCaseController(object):
         # Now have to wait until all clients are connected
         per_sec = 5
         success = True
-        for _ in xrange(timeout * per_sec):
+        for _ in range(timeout * per_sec):
             if self._is_cancelled:
-                raise TestInterruptedError('test cancelled')
+                raise FixtestTestInterruptedError('test cancelled')
 
             success = True
             for client in self.clients().values():
@@ -182,19 +185,19 @@ class TestCaseController(object):
                 break
             time.sleep(1.0/per_sec)
         if not success:
-            raise TimeoutError('waiting for clients to connect')
+            raise FixtestTimeoutError('waiting for clients to connect')
 
     def wait_for_server_connections(self, timeout):
         """ Wait for all server connections to connect.
 
             Raises:
-                TestInterruptedError
-                TimeoutError
+                FixtestTestInterruptedError
+                FixtestTimeoutError
         """
         per_sec = 5
-        for _ in xrange(timeout * per_sec):
+        for _ in range(timeout * per_sec):
             if self._is_cancelled:
-                raise TestInterruptedError('test cancelled')
+                raise FixtestTestInterruptedError('test cancelled')
 
             success = True
             for server in self.servers().values():
@@ -208,4 +211,4 @@ class TestCaseController(object):
             time.sleep(1.0/per_sec)
 
         if not success:
-            raise TimeoutError("waitng for servers to connect")
+            raise FixtestTimeoutError("waitng for servers to connect")

@@ -135,6 +135,6 @@ CONNECTIONS = [
         'required_fields': FIX_4_2['required_fields'],
         'group_fields': FIX_4_2['group_fields'],
         'common_fields':[(50, 'TAG50'),
-                         (142, 'GB'),],
+                         (142, 'GB'), ],
     },
 ]

@@ -1,7 +1,7 @@
 """ FIX transport class - responsible for the interface
     between the protocol and the actual Twisted transport.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -12,7 +12,7 @@ import logging
 from twisted import internet
 from twisted.internet import task, reactor
 
-from fixtest.base import ConnectionError
+from fixtest.base import FixtestConnectionError
 from fixtest.base.queue import MessageQueue
 from fixtest.base.utils import log_text
 from fixtest.fix.constants import FIX
@@ -37,7 +37,7 @@ class FIXTransportFactory(internet.protocol.Factory):
         self._node_config = node_config
         self._link_config = link_config
 
-        self.servers = list()
+        self.servers = []
         self.filter_heartbeat = True
 
         self._logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class FIXTransportFactory(internet.protocol.Factory):
         # pylint: disable=unused-argument
 
         log_text(self._logger.info, None,
-                 'Connected: {0} : {1}'.format(self.__class__, self._name))
+                 f'Connected: {self.__class__} : {self._name}')
 
         transport = self.create_transport(self._name,
                                           self._node_config,
@@ -96,8 +96,7 @@ class FIXTransportFactory(internet.protocol.Factory):
         server['listener'] = result
 
         log_text(self._logger.info, __name__,
-                 'server:{0} listening on port {1}'.format(server['name'],
-                                                           server['port']))
+                 f"server:{server['name']} listening on port {server['port']}")
 
     def server_failure(self, error, *args, **kwargs):
         """ This is called when a server fails to connect """
@@ -105,9 +104,8 @@ class FIXTransportFactory(internet.protocol.Factory):
         server = args[0]
         server['error'] = error
         log_text(self._logger.error, __name__,
-                 'server:{0} failed to start: {1}'.format(args[0]['name'],
-                                                          error))
-        return ConnectionError(str(error))
+                 f"server:{args[0]['name']} failed to start: {error}")
+        return FixtestConnectionError(str(error))
 
 
 class FIXTransport(internet.protocol.Protocol):
@@ -144,6 +142,7 @@ class FIXTransport(internet.protocol.Protocol):
 
             Returns: a new orderID string
         """
+        # pylint: disable=consider-using-f-string
         self._orderid_no += 1
         return "{0}/{1}/{2}".format(
             self.name,
@@ -205,7 +204,7 @@ class FIXTransport(internet.protocol.Protocol):
 
             Raises:
                 fixtest.base.TestInterruptedError:
-                fixtest.base.TimeoutError:
+                fixtest.base.FixtestTimeoutError:
         """
         return self.queue.wait_for_message(title=title, timeout=timeout)
 
@@ -241,7 +240,7 @@ class FIXTransport(internet.protocol.Protocol):
 
     def client_success(self, result, *args, **kwargs):
         """ This is called from Twisted upon connection """
-        # pylint: disable=unused-argument
+        # pylint: disable=unused-argument,consider-using-f-string
         client = args[0]
         client['connected'] = 'success'
         log_text(self._logger.info, __name__,
@@ -255,6 +254,5 @@ class FIXTransport(internet.protocol.Protocol):
         client = args[0]
         client['error'] = error
         log_text(self._logger.error, __name__,
-                 'client:{0} failed to start: {1}'.format(args[0]['name'],
-                                                          error))
-        return ConnectionError(str(error))
+                 f"client:{args[0]['name']} failed to start: {error}")
+        return FixtestConnectionError(str(error))

@@ -1,7 +1,7 @@
 """ FIX receiver class - responsible for the implementation
     of the FIX protocol.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -18,7 +18,7 @@ from fixtest.fix.utils import format_time
 class FIXDataError(ValueError):
     """ Exception: Problem found with the data in the message. """
     def __init__(self, refid, message):
-        super(FIXDataError, self).__init__()
+        super().__init__()
         self.reference_id = refid
         self.message = message
 
@@ -29,14 +29,14 @@ class FIXDataError(ValueError):
 class FIXTimeoutError(ValueError):
     """ Exception: Timeout. """
     def __init__(self, message):
-        super(FIXTimeoutError, self).__init__()
+        super().__init__()
         self.message = message
 
     def __str__(self):
         return self.message
 
 
-class FIXProtocol(object):
+class FIXProtocol:
     """ Implements the protocol interface.  Instead of dealing directly
         with byte streams, we now deal with Messages.  This layer is
         responsible for most of the administration level logic, such as
@@ -85,8 +85,8 @@ class FIXProtocol(object):
 
         self.name = name
         self.transport = transport
-        self.config = kwargs.get('config', dict())
-        self.link_config = kwargs.get('link_config', dict())
+        self.config = kwargs.get('config', {})
+        self.link_config = kwargs.get('link_config', {})
         self._debug = kwargs.get('debug')
 
         if len(self.link_config.get('protocol_version', '')) == 0:
@@ -145,7 +145,7 @@ class FIXProtocol(object):
                 continue
 
             if tag not in message or len(str(message[tag])) == 0:
-                raise FIXDataError(tag, 'missing field: id:{0}'.format(tag))
+                raise FIXDataError(tag, f'missing field: id:{tag}')
 
         self._last_send_time = send_time
         return message
@@ -154,10 +154,11 @@ class FIXProtocol(object):
         """ This is the callback from the parser when a message has
             been received.
         """
+        # pylint: disable=consider-using-f-string
         # verify required tags
         for tag in self.link_config['required_fields']:
             if tag not in message or len(str(message[tag])) == 0:
-                raise FIXDataError(tag, 'missing field: id:{0}'.format(tag))
+                raise FIXDataError(tag, f'missing field: id:{tag}')
 
         # verify the protocol version
         if 'protocol_version' in self.link_config:
@@ -231,7 +232,7 @@ class FIXProtocol(object):
         # if heartbeat seconds + "some transmission time" have elapsed
         # since a message was received, send a TestRequest
         if (now - self._last_received_time).seconds > self.heartbeat:
-            testrequest_id = "TR{0}".format(format_time(now))
+            testrequest_id = f"TR{format_time(now)}"
             self._testrequest_time = now
             self._testrequest_id = testrequest_id
             self.transport.send_message(

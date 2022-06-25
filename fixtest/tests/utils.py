@@ -1,6 +1,6 @@
 """ test utilities module
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -15,19 +15,18 @@ def to_fix(*args):
     return b'\x01'.join([x.encode('latin-1') for x in args]) + b'\x01'
 
 
-def to_ordered_dict(v):
+def to_ordered_dict(val):
     """ Converts an unordered dict() into an orderedDict(), sorted
         by the key.
     """
-    if isinstance(v, dict):
+    if isinstance(val, dict):
         return collections.OrderedDict(
-            sorted(v.items(), key=lambda t: t[0]))
-    elif isinstance(v, list):
-        new_container = list()
-        for item in v:
+            sorted(val.items(), key=lambda t: t[0]))
+    if isinstance(val, list):
+        new_container = []
+        for item in val:
             new_container.append(to_ordered_dict(item))
         return new_container
-    elif isinstance(v, tuple):
-        return (v[0], to_ordered_dict(v[1]))
-    else:
-        return v
+    if isinstance(val, tuple):
+        return (val[0], to_ordered_dict(val[1]))
+    return val

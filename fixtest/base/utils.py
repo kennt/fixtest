@@ -1,6 +1,6 @@
 """ Utilities module
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -17,9 +17,8 @@ def format_log_line(header, text):
     """ Formats a single of line of text given a header and some text.
     """
     if header is None:
-        return "{0}: {1}".format(current_timestamp(), text)
-    else:
-        return "{0}: {1}: {2}".format(current_timestamp(), header, text)
+        return f"{current_timestamp()}: {text}"
+    return f"{current_timestamp()}: {header}: {text}"
 
 
 def log_text(log, header, text):

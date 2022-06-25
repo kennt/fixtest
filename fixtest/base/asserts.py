@@ -1,6 +1,6 @@
 """ Assertions for use within the test controllers.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -11,6 +11,7 @@ import sys
 
 def assert_equals(condition_a, condition_b):
     """ Assert that both sides are equal """
+    # pylint: disable=protected-access, consider-using-f-string
     caller = sys._getframe(1)
     if condition_a != condition_b:
         raise AssertionError(
@@ -23,6 +24,7 @@ def assert_equals(condition_a, condition_b):
 
 def assert_not_equals(condition_a, condition_b):
     """ Assert that the sides are not equal """
+    # pylint: disable=protected-access, consider-using-f-string
     caller = sys._getframe(1)
     if condition_a == condition_b:
         raise AssertionError(
@@ -35,6 +37,7 @@ def assert_not_equals(condition_a, condition_b):
 
 def assert_is_none(condition):
     """ Assert the condition is None """
+    # pylint: disable=protected-access, consider-using-f-string
     caller = sys._getframe(1)
     if condition is not None:
         raise AssertionError(
@@ -46,6 +49,7 @@ def assert_is_none(condition):
 
 def assert_is_not_none(condition):
     """ Assert the condition is not None """
+    # pylint: disable=protected-access, consider-using-f-string
     caller = sys._getframe(1)
     if condition is None:
         raise AssertionError(
@@ -57,6 +61,7 @@ def assert_is_not_none(condition):
 
 def assert_true(condition):
     """ Assert the condition is True """
+    # pylint: disable=protected-access, consider-using-f-string
     caller = sys._getframe(1)
     if condition is not True:
         raise AssertionError(
@@ -68,6 +73,7 @@ def assert_true(condition):
 
 def assert_false(condition):
     """ Assert the condition is False """
+    # pylint: disable=protected-access, consider-using-f-string
     caller = sys._getframe(1)
     if condition is True:
         raise AssertionError(
@@ -79,6 +85,7 @@ def assert_false(condition):
 
 def assert_tag_exists(message, tags):
     """ Check to see that the tags exist in the message """
+    # pylint: disable=protected-access, consider-using-f-string
     caller = sys._getframe(1)
     for tag in tags:
         if tag not in message:
@@ -91,6 +98,7 @@ def assert_tag_exists(message, tags):
 
 def assert_tag(message, tags):
     """ Check to see that the tag and values are in the message """
+    # pylint: disable=protected-access, consider-using-f-string
     caller = sys._getframe(1)
     for tag in tags:
         if tag[0] not in message:

@@ -1,6 +1,6 @@
 """ Helper functions to create common FIX messages.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -41,7 +41,7 @@ def new_order_message(client, **kwargs):
     # Required parameters
     for sym in ['symbol', 'side', 'order_type']:
         if sym not in kwargs:
-            raise ValueError("{0} must have a value".format(sym))
+            raise ValueError(f"{sym} must have a value")
 
     # optional parameters
     extra_tags = kwargs.get('extra_tags', [])
@@ -81,7 +81,7 @@ def execution_report(client, prev_message, **kwargs):
                 'leaves_qty', 'cum_qty',
                 'avg_px']:
         if sym not in kwargs:
-            raise ValueError("{0} must have a value".format(sym))
+            raise ValueError(f"{sym} must have a value")
 
     # optional parameters
     extra_tags = kwargs.get('extra_tags', [])

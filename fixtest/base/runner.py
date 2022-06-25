@@ -1,6 +1,6 @@
 """ The main script that starts up twisted and runs the tests.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -97,7 +97,7 @@ def _find_controller(module_name):
                 Only the first one will be loaded and run.
     """
     if not os.path.isfile(module_name):
-        print "Cannot find the file:" + module_name
+        print(f"Cannot find the file:{module_name}")
         sys.exit(2)
 
     # Update the sys.path to contain the current directory
@@ -107,13 +107,13 @@ def _find_controller(module_name):
     module_path = module_name.replace('/', '.')
     if module_path.endswith('.py'):
         module_path = module_path[:-3]
-    print "looking for module_path: {0}".format(module_path)
+    print(f"looking for module_path: {module_path}")
     module = importlib.import_module(module_path)
 
     cls = None
 
     for entry in dir(module):
-        print "Looking at entry: {0}".format(entry)
+        print(f"Looking at entry: {entry}")
         if entry == 'TestController':
             continue
 
@@ -136,7 +136,7 @@ def _find_controller(module_name):
         break
 
     if cls is None:
-        print "Cannot find the TestCaseController in the file:" + module_name
+        print(f"Cannot find the TestCaseController in the file:{module_name}")
         sys.exit(2)
     return cls
 
@@ -145,6 +145,7 @@ def main():
     """ Main entrypoint for the tool.  This will be called from the
         command-line script.
     """
+    # pylint: disable=protected-access
     _setup_logging_config()
     logger = logging.getLogger(__name__)
 
@@ -173,7 +174,7 @@ def main():
 
     arg_results = _parse_command_line_args()
     if arg_results.version is True:
-        print "{0}, version {1}".format(sys.argv[0], VERSION_STRING)
+        print(f"{sys.argv[0]}, version {VERSION_STRING}")
         sys.exit(2)
 
     if arg_results.debug is True:
@@ -185,7 +186,7 @@ def main():
 
     file_name = arg_results.config_file
     if not os.path.isfile(file_name):
-        print "Cannot find the configuration file: {0}".format(file_name)
+        print(f"Cannot find the configuration file: {file_name}")
         sys.exit(2)
     config_file = FileConfig(file_name)
 
@@ -195,25 +196,24 @@ def main():
     log_text(logger.info, None, '================')
     log_text(logger.info, None, 'Starting test: ' +
                                 str(datetime.datetime.now().date()))
-    log_text(logger.info, None, '  Module: ' + arg_results.test_name)
-    log_text(logger.info, None, '  Controller: ' + controller_class.__name__)
-    log_text(logger.info, None, '  Config: ' + file_name)
+    log_text(logger.info, None, f'  Module: {arg_results.test_name}')
+    log_text(logger.info, None, f'  Controller: {controller_class.__name__}')
+    log_text(logger.info, None, f'  Config: {file_name}')
 
     controller = controller_class(config=config_file,
                                   test_params=arg_results.args)
 
     log_text(logger.info, None, '')
-    log_text(logger.info, None, '  Test case: ' + controller.testcase_id)
-    log_text(logger.info, None, '  Description: ' + controller.description)
+    log_text(logger.info, None, f'  Test case: {controller.testcase_id}')
+    log_text(logger.info, None, f'  Description: {controller.description}')
     log_text(logger.info, None, '================')
 
     # startup the servers (they don't really startup until reactor.run())
     for server in controller.servers().values():
         log_text(logger.info, None,
-                 'server:{0} starting on port {1}'.format(server['name'],
-                                                          server['port']))
+                 f"server:{server['name']} starting on port {server['port']}")
         endpoint = serverFromString(reactor,
-                                    b"tcp:{0}".format(server['port']))
+                                    f"tcp:{0}".format(server['port']).encode())
         factory = server['factory']
         deferred = endpoint.listen(factory)
         deferred.addCallbacks(factory.server_success,
@@ -232,5 +232,5 @@ def main():
 
     log_text(logger.info, None, '================')
     log_text(logger.info, None,
-             "Test status: {0}\n".format(controller.test_status))
+             f"Test status: {controller.test_status}\n")
     sys.exit(controller.exit_value)

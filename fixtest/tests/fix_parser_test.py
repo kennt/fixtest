@@ -1,6 +1,6 @@
 """ fix.parser unit tests
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
@@ -15,7 +15,7 @@ from fixtest.tests.utils import to_fix
 # pylint: disable=missing-docstring
 
 
-class MockFIXReceiver(object):
+class MockFIXReceiver:
     def __init__(self):
         self.count = 0
         self.last_received_message = None
@@ -34,7 +34,7 @@ class MockFIXReceiver(object):
 class TestFIXParserInternals(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(TestFIXParserInternals, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.receiver = None
 
@@ -43,14 +43,16 @@ class TestFIXParserInternals(unittest.TestCase):
 
     def test_parse_field(self):
         """ Basic _parse_field function test """
+        # pylint: disable=protected-access
         parser = FIXParser(self.receiver)
 
         field = parser._parse_field(b'8=a')
-        self.assertEquals(8, field[0])
-        self.assertEquals(b'a', field[1])
+        self.assertEqual(8, field[0])
+        self.assertEqual(b'a', field[1])
 
     def test_parse_field_bad_input(self):
         """ Test bad _parse_field inputs """
+        # pylint: disable=protected-access
         parser = FIXParser(self.receiver)
 
         # missing '='
@@ -73,7 +75,7 @@ class TestFIXParserInternals(unittest.TestCase):
 class TestFIXParser(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(TestFIXParser, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.receiver = None
 
@@ -100,11 +102,11 @@ class TestFIXParser(unittest.TestCase):
                                        '10=062'))
 
         self.assertFalse(parser.is_parsing)
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(10, len(message))
+        self.assertEqual(10, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
                                                (9, '65'),
                                                (35, 'A'),
@@ -137,11 +139,11 @@ class TestFIXParser(unittest.TestCase):
                            header_fields=[8, 9])
 
         self.assertFalse(parser.is_parsing)
-        self.assertEquals(0, self.receiver.count)
+        self.assertEqual(0, self.receiver.count)
         parser.on_data_received(to_fix('8=FIX.4.2',
                                        '9=32',
                                        '35=A'))
-        self.assertEquals(0, self.receiver.count)
+        self.assertEqual(0, self.receiver.count)
         self.assertTrue(parser.is_parsing)
 
     def test_bad_syntax(self):
@@ -202,7 +204,7 @@ class TestFIXParser(unittest.TestCase):
                                        '1000=20',
                                        '1001=ab',
                                        '10=000'))
-        self.assertEquals(0, self.receiver.count)
+        self.assertEqual(0, self.receiver.count)
         self.assertTrue(parser.is_parsing)
 
         # Note that we could have an error where the length of the
@@ -272,7 +274,7 @@ class TestFIXParser(unittest.TestCase):
                                        '1001=10101010',
                                        '10=127'))
         self.assertIsNone(self.receiver.last_error)
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
         self.assertIsNotNone(self.receiver.last_received_message)
 
     def test_header_fields(self):
@@ -284,18 +286,18 @@ class TestFIXParser(unittest.TestCase):
                                        '9=5',
                                        '35=A',
                                        '10=178'))
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
         message[320] = 'hello there'
-        self.assertEquals(5, len(message))
+        self.assertEqual(5, len(message))
 
         # verify the order of the message
-        items = [(k, v) for k, v in message.items()]
-        self.assertEquals(8, items[0][0])
-        self.assertEquals(9, items[1][0])
-        self.assertEquals(320, items[2][0])
+        items = list(message.items())
+        self.assertEqual(8, items[0][0])
+        self.assertEqual(9, items[1][0])
+        self.assertEqual(320, items[2][0])
 
     def test_binary_fields(self):
         """ Binary field testing. """
@@ -309,11 +311,11 @@ class TestFIXParser(unittest.TestCase):
                                        '1000=5',
                                        '1001=\x01\x02\x03\x04\x05',
                                        '10=066'))
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(5, len(message))
+        self.assertEqual(5, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
                                                (9, '18'),
                                                (1000, '5'),
@@ -326,11 +328,11 @@ class TestFIXParser(unittest.TestCase):
                                        '1000=5',
                                        '1001=31=20',
                                        '10=054'))
-        self.assertEquals(2, self.receiver.count)
+        self.assertEqual(2, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(5, len(message))
+        self.assertEqual(5, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
                                                (9, '18'),
                                                (1000, '5'),
@@ -350,23 +352,23 @@ class TestFIXParser(unittest.TestCase):
                                        '101=a',
                                        '102=b',
                                        '10=099'))
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(4, len(message))
+        self.assertEqual(4, len(message))
 
         self.assertTrue(100 in message)
-        self.assertEquals(1, len(message[100]))
+        self.assertEqual(1, len(message[100]))
 
         group = message[100]
         self.assertIsNotNone(group)
-        self.assertEquals(1, len(group))
-        self.assertEquals(2, len(group[0]))
+        self.assertEqual(1, len(group))
+        self.assertEqual(2, len(group[0]))
         self.assertTrue(101 in group[0])
         self.assertTrue(102 in group[0])
-        self.assertEquals(b'a', group[0][101])
-        self.assertEquals(b'b', group[0][102])
+        self.assertEqual(b'a', group[0][101])
+        self.assertEqual(b'b', group[0][102])
 
     def test_multiple_groups(self):
         """ Test the receiving of multiple groups """
@@ -383,28 +385,28 @@ class TestFIXParser(unittest.TestCase):
                                        '101=aa',
                                        '102=bb',
                                        '10=135'))
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(4, len(message))
+        self.assertEqual(4, len(message))
 
         self.assertTrue(100 in message)
-        self.assertEquals(2, len(message[100]))
+        self.assertEqual(2, len(message[100]))
 
         group = message[100]
         self.assertIsNotNone(group)
-        self.assertEquals(2, len(group))
-        self.assertEquals(2, len(group[0]))
+        self.assertEqual(2, len(group))
+        self.assertEqual(2, len(group[0]))
         self.assertTrue(101 in group[0])
         self.assertTrue(102 in group[0])
-        self.assertEquals(b'a', group[0][101])
-        self.assertEquals(b'b', group[0][102])
-        self.assertEquals(2, len(group[1]))
+        self.assertEqual(b'a', group[0][101])
+        self.assertEqual(b'b', group[0][102])
+        self.assertEqual(2, len(group[1]))
         self.assertTrue(101 in group[1])
         self.assertTrue(102 in group[1])
-        self.assertEquals(b'aa', group[1][101])
-        self.assertEquals(b'bb', group[1][102])
+        self.assertEqual(b'aa', group[1][101])
+        self.assertEqual(b'bb', group[1][102])
 
     def test_nested_groups(self):
         """ Test the receiving of nested groups """
@@ -423,35 +425,35 @@ class TestFIXParser(unittest.TestCase):
                                        '201=abc',
                                        '202=def',
                                        '10=087'))
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(4, len(message))
+        self.assertEqual(4, len(message))
 
         self.assertTrue(100 in message)
-        self.assertEquals(1, len(message[100]))
+        self.assertEqual(1, len(message[100]))
 
         group = message[100]
         self.assertIsNotNone(group)
-        self.assertEquals(1, len(group))
-        self.assertEquals(3, len(group[0]))
+        self.assertEqual(1, len(group))
+        self.assertEqual(3, len(group[0]))
         self.assertTrue(101 in group[0])
         self.assertTrue(102 in group[0])
         self.assertTrue(200 in group[0])
-        self.assertEquals(b'a', group[0][101])
-        self.assertEquals(b'b', group[0][102])
+        self.assertEqual(b'a', group[0][101])
+        self.assertEqual(b'b', group[0][102])
 
         subgroup = group[0]
         self.assertIsNotNone(subgroup)
-        self.assertEquals(3, len(subgroup))
-        self.assertEquals(1, len(subgroup[200]))
+        self.assertEqual(3, len(subgroup))
+        self.assertEqual(1, len(subgroup[200]))
         subgroup200 = subgroup[200]
-        self.assertEquals(2, len(subgroup200[0]))
+        self.assertEqual(2, len(subgroup200[0]))
         self.assertTrue(201 in subgroup200[0])
         self.assertTrue(202 in subgroup200[0])
-        self.assertEquals(b'abc', subgroup200[0][201])
-        self.assertEquals(b'def', subgroup200[0][202])
+        self.assertEqual(b'abc', subgroup200[0][201])
+        self.assertEqual(b'def', subgroup200[0][202])
 
     def test_multiple_message(self):
         """ Receive two messages in one data buffer """
@@ -469,11 +471,11 @@ class TestFIXParser(unittest.TestCase):
                                        '99=forsooth',
                                        '10=013'))
         self.assertFalse(parser.is_parsing)
-        self.assertEquals(2, self.receiver.count)
+        self.assertEqual(2, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(5, len(message))
+        self.assertEqual(5, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
                                                (9, '17'),
                                                (35, 'E'),
@@ -491,16 +493,15 @@ class TestFIXParser(unittest.TestCase):
                       '919=this',
                       '955=that',
                       '10=013')
-        print(text)
-        for c in text:
-            parser.on_data_received(c.to_bytes(1, 'big'))
+        for char in text:
+            parser.on_data_received(char.to_bytes(1, 'big'))
 
         self.assertFalse(parser.is_parsing)
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(6, len(message))
+        self.assertEqual(6, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
                                                (9, '23'),
                                                (35, 'A'),
@@ -527,11 +528,11 @@ class TestFIXParser(unittest.TestCase):
         parser.on_data_received(text2)
         self.assertFalse(parser.is_parsing)
 
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(8, len(message))
+        self.assertEqual(8, len(message))
         self.assertTrue(message.verify(fields=[(8, 'FIX.4.2'),
                                                (9, '38'),
                                                (35, 'A'),
@@ -565,21 +566,21 @@ class TestFIXParser(unittest.TestCase):
         parser.on_data_received(text)
         self.assertFalse(parser.is_parsing)
 
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         self.assertIsNotNone(message)
-        self.assertEquals(6, len(message))
-        self.assertEquals(2, len(message[200]))
+        self.assertEqual(6, len(message))
+        self.assertEqual(2, len(message[200]))
         self.assertTrue(200 in message)
         self.assertTrue(955 in message)
         subgroup = message[200][0]
-        self.assertEquals(3, len(subgroup))
+        self.assertEqual(3, len(subgroup))
         self.assertTrue(201 in subgroup)
         self.assertTrue(99 in subgroup)
         self.assertTrue(100 in subgroup)
         subgroup = message[200][1]
-        self.assertEquals(4, len(subgroup))
+        self.assertEqual(4, len(subgroup))
         self.assertTrue(201 in subgroup)
         self.assertTrue(202 in subgroup)
         self.assertTrue(99 in subgroup)
@@ -605,43 +606,43 @@ class TestFIXParser(unittest.TestCase):
                                        '101=c',
                                        '102=d',
                                        '10=002'))
-        self.assertEquals(1, self.receiver.count)
+        self.assertEqual(1, self.receiver.count)
 
         message = self.receiver.last_received_message
         print(message.store)
         self.assertIsNotNone(message)
-        self.assertEquals(4, len(message))
+        self.assertEqual(4, len(message))
 
         self.assertTrue(100 in message)
-        self.assertEquals(2, len(message[100]))
+        self.assertEqual(2, len(message[100]))
 
         group = message[100]
         self.assertIsNotNone(group)
-        self.assertEquals(2, len(group))
-        self.assertEquals(3, len(group[0]))
+        self.assertEqual(2, len(group))
+        self.assertEqual(3, len(group[0]))
         self.assertTrue(101 in group[0])
         self.assertTrue(102 in group[0])
         self.assertTrue(200 in group[0])
-        self.assertEquals(b'a', group[0][101])
-        self.assertEquals(b'b', group[0][102])
-        self.assertEquals(2, len(group[1]))
+        self.assertEqual(b'a', group[0][101])
+        self.assertEqual(b'b', group[0][102])
+        self.assertEqual(2, len(group[1]))
         self.assertTrue(101 in group[1])
         self.assertTrue(102 in group[1])
         self.assertTrue(200 not in group[1])
-        self.assertEquals(b'c', group[1][101])
-        self.assertEquals(b'd', group[1][102])
+        self.assertEqual(b'c', group[1][101])
+        self.assertEqual(b'd', group[1][102])
 
         subgroup = group[0]
         self.assertIsNotNone(subgroup)
-        self.assertEquals(3, len(subgroup))
-        self.assertEquals(2, len(subgroup[200]))
+        self.assertEqual(3, len(subgroup))
+        self.assertEqual(2, len(subgroup[200]))
         subgroup200 = subgroup[200]
-        self.assertEquals(2, len(subgroup200[0]))
+        self.assertEqual(2, len(subgroup200[0]))
         self.assertTrue(201 in subgroup200[0])
         self.assertTrue(202 in subgroup200[0])
-        self.assertEquals(b'abc', subgroup200[0][201])
-        self.assertEquals(b'def', subgroup200[0][202])
-        self.assertEquals(1, len(subgroup200[1]))
+        self.assertEqual(b'abc', subgroup200[0][201])
+        self.assertEqual(b'def', subgroup200[0][202])
+        self.assertEqual(1, len(subgroup200[1]))
         self.assertTrue(201 in subgroup200[1])
         self.assertTrue(202 not in subgroup200[1])
-        self.assertEquals(b'zzz', subgroup200[1][201])
+        self.assertEqual(b'zzz', subgroup200[1][201])
