@@ -173,7 +173,7 @@ def main():
     # If there's only a single argument asking for the version
     # exit out without going through argparse
     if len(sys.argv) > 1 and \
-        (sys.argv[1] == "-v" or sys.argv[1] == "--version"):
+            (sys.argv[1] == "-v" or sys.argv[1] == "--version"):
         print(f"{sys.argv[0]}, version {VERSION_STRING}")
         sys.exit(0)
 
