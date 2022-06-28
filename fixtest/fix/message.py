@@ -24,7 +24,7 @@ def checksum(data, starting_checksum=0):
 
 
 def _single_field(tag, value):
-    """ Returns byte string in the form of "tag=value\x01"
+    """ Returns a byte string in the form of "tag=value\x01"
     """
     iobuf = BytesIO()
 
@@ -112,7 +112,6 @@ class FIXMessage(BasicMessage):
 
             FIX only expects purely numeric keys.
         """
-        # pylint: disable=no-self-use
         return int(key)
 
     def msg_type(self):
@@ -192,15 +191,6 @@ class FIXMessage(BasicMessage):
                 False otherwise.
         """
 
-        def _compare(field1, field2):
-            value1 = field1
-            value2 = field2
-            if not isinstance(value1, bytes):
-                value1 = value1.encode('latin-1')
-            if not isinstance(value2, bytes):
-                value2 = value2.encode('latin-1')
-            return value1 == value2
-
         fields = fields or []
         exists = exists or []
         not_exists = not_exists or []
@@ -209,7 +199,7 @@ class FIXMessage(BasicMessage):
             if field[0] not in self:
                 return False
 
-            if not _compare(self[field[0]], field[1]):
+            if self[field[0]] != field[1]:
                 return False
 
         for tag in exists:

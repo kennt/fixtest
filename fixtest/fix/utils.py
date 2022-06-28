@@ -21,7 +21,7 @@ def flatten(container):
     """
     items = []
     for key, value in container.items():
-        if isinstance(value, collections.MutableMapping):
+        if isinstance(value, collections.abc.MutableMapping):
             items.append((key, len(value)))
             items.extend(flatten(value))
         else:

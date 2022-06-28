@@ -71,7 +71,6 @@ class FIXTransportFactory(internet.protocol.Factory):
 
             Returns: an instance of a FIxTransport
         """
-        # pylint: disable=no-self-use
         transport = FIXTransport(name, link_config)
         protocol = FIXProtocol(name,
                                transport,

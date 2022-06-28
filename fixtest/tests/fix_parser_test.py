@@ -27,7 +27,6 @@ class MockFIXReceiver:
         self.last_received_message = message
 
     def on_error_received(self, error):
-        # pylint: disable=no-self-use
         raise error
 
 

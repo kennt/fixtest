@@ -131,11 +131,11 @@ class FIXParser:
         """ Parses the 'id=value' field.  id must be a number.
 
             Returns: a tuple containing (id, value).
+            value is a byte string.
 
             Raises:
                 FIXParserError
         """
-        # pylint: disable=no-self-use
 
         delim = buf.find(b'=')
         if delim == -1:
@@ -193,6 +193,8 @@ class FIXParser:
 
     def _update_field(self, tag_id, value):
         """ Update the value of the field
+            If the value is a bytestring, it will be converted
+            to a regular string.
 
             Need to change the level of the container due to the
             grouping aspects.
@@ -208,7 +210,10 @@ class FIXParser:
 
         elif len(self._level_stack) == 0:
             # We are at the top of the message
-            self._message[tag_id] = value
+            if isinstance(value, bytes):
+                self._message[tag_id] = value.decode()
+            else:
+                self._message[tag_id] = value
 
         elif tag_id in self._group_fields[self._level_stack[-1]['tag_id']]:
             # We are within a group and the field is in the list of tags

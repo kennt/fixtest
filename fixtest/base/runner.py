@@ -20,11 +20,10 @@ from twisted.internet import reactor
 from twisted.internet.endpoints import serverFromString
 from twisted.python import log
 
+from fixtest import VERSION_STRING
 from fixtest.base.controller import TestCaseController
 from fixtest.base.config import FileConfig
 from fixtest.base.utils import log_text
-
-VERSION_STRING = '0.1.1'
 
 
 def _parse_command_line_args():
@@ -44,7 +43,8 @@ def _parse_command_line_args():
     parser.add_argument(
         '-v', '--version',
         help='Display the version number',
-        action='store_true')
+        action='store_true',
+        default=False)
     parser.add_argument(
         '-d', '--debug',
         help='enable debug output',
@@ -107,13 +107,11 @@ def _find_controller(module_name):
     module_path = module_name.replace('/', '.')
     if module_path.endswith('.py'):
         module_path = module_path[:-3]
-    print(f"looking for module_path: {module_path}")
     module = importlib.import_module(module_path)
 
     cls = None
 
     for entry in dir(module):
-        print(f"Looking at entry: {entry}")
         if entry == 'TestController':
             continue
 
@@ -172,10 +170,17 @@ def main():
         test_thread = threading.Thread(target=call_function)
         test_thread.start()
 
+    # If there's only a single argument asking for the version
+    # exit out without going through argparse
+    if len(sys.argv) > 1 and \
+        (sys.argv[1] == "-v" or sys.argv[1] == "--version"):
+        print(f"{sys.argv[0]}, version {VERSION_STRING}")
+        sys.exit(0)
+
     arg_results = _parse_command_line_args()
     if arg_results.version is True:
         print(f"{sys.argv[0]}, version {VERSION_STRING}")
-        sys.exit(2)
+        sys.exit(0)
 
     if arg_results.debug is True:
         logger.setLevel(logging.DEBUG)
@@ -213,7 +218,7 @@ def main():
         log_text(logger.info, None,
                  f"server:{server['name']} starting on port {server['port']}")
         endpoint = serverFromString(reactor,
-                                    f"tcp:{0}".format(server['port']).encode())
+                                    f"tcp:{server['port']}")
         factory = server['factory']
         deferred = endpoint.listen(factory)
         deferred.addCallbacks(factory.server_success,

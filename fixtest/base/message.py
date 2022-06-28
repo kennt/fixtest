@@ -8,7 +8,7 @@
 import collections
 
 
-class BasicMessage(collections.MutableMapping):
+class BasicMessage(collections.abc.MutableMapping):
     """ A BasicMessage is just a collection of (ID, VALUE) pairs.
 
         All IDs are converted into strings, this allows users of the
@@ -50,5 +50,4 @@ class BasicMessage(collections.MutableMapping):
     def __keytransform__(self, key):
         """ Override this to enforce the type of key expected.
         """
-        # pylint: disable=no-self-use
         return str(key)

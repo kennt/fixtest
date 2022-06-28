@@ -7,7 +7,7 @@
 
 import logging
 
-from fixtest.base.asserts import *
+from fixtest.base.asserts import assert_is_not_none, assert_tag
 from fixtest.base.controller import TestCaseController
 from fixtest.fix.constants import FIX
 from fixtest.fix.messages import logon_message, logout_message
@@ -22,8 +22,10 @@ class BaseClientServerController(TestCaseController):
         communicate with each other.  So they will use
         the same link config.
     """
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self, **kwargs):
-        super(BaseClientServerController, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         config = kwargs['config']
 
@@ -45,8 +47,10 @@ class BaseClientServerController(TestCaseController):
             'target_compid': self.client_link_config['test-server'],
             })
 
-        self._servers = dict()
-        self._clients = dict()
+        self._servers = {}
+        self._clients = {}
+        self.client = None
+        self.server = None
 
         factory = FIXTransportFactory('server-9940',
                                       self.server_config,
@@ -115,6 +119,12 @@ class BaseClientServerController(TestCaseController):
         self.client.start_heartbeat(True)
         assert_is_not_none(message)
         assert_tag(message, [(35, FIX.LOGON)])
+
+    def run(self):
+        """ Override this to implement the actual test.
+
+            This is the responsibility of the subclass.
+        """
 
     def teardown(self):
         # Logout

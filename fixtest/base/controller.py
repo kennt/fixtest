@@ -94,13 +94,11 @@ class TestCaseController:
             Returns: Return True if everything is ok.  Return
                 False to stop the test.
         """
-        # pylint: disable=no-self-use
         return True
 
     def setup(self):
         """ Override this to implement any setup
         """
-        # pylint: disable=no-self-use
 
     def run(self):
         """ Override this to implement the actual test.
@@ -116,7 +114,6 @@ class TestCaseController:
             case of an exception, the connections will be torn
             down by shutting the reactor down.
         """
-        # pylint: disable=no-self-use
 
     def cancel_test(self):
         """ Cancels the test.  Cancels any operations.
@@ -145,7 +142,7 @@ class TestCaseController:
                      client['port']))
 
         str_send = f"tcp:{client['host']}:{client['port']}:timeout=10"
-        endpoint = clientFromString(reactor, str_send.encode('latin-1'))
+        endpoint = clientFromString(reactor, str_send)
 
         node = client['node']
         deferred = connectProtocol(endpoint, node)

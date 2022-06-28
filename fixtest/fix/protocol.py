@@ -162,7 +162,7 @@ class FIXProtocol:
 
         # verify the protocol version
         if 'protocol_version' in self.link_config:
-            if self.link_config['protocol_version'] != message[8].decode():
+            if self.link_config['protocol_version'] != message[8]:
                 raise FIXDataError(
                     8, 'version mismatch: expect:{0} received:{1}'.format(
                         self.link_config['protocol_version'],
@@ -204,7 +204,6 @@ class FIXProtocol:
         """ This is the callback from the parser when an error in the
             message has been detected.
         """
-        # pylint: disable=no-self-use
         raise error
 
     def on_timer_tick_received(self):

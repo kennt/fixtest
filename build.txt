@@ -1,0 +1,24 @@
+Obtaining the source
+====================
+git clone https://github.com/kennt/fixtest
+
+
+Running the tests
+=================
+nosetests fixtest
+
+
+Analyzing the code
+==================
+pycodestyle fixtest
+pylint fixtest
+
+
+Building the package
+====================
+python -m build wheel
+
+
+Uploading the package
+=====================
+twine upload dist/*

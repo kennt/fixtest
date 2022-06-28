@@ -30,6 +30,7 @@
 
 import copy
 import runpy
+import pathlib
 
 
 class Config:
@@ -103,6 +104,10 @@ class FileConfig(Config):
                 file_name:
         """
         super().__init__()
+
+        if not pathlib.Path(file_name).is_file():
+            raise FileNotFoundError(file_name)
+
         new_globals = runpy.run_path(file_name, globals())
 
         self._config['CONNECTIONS'] = new_globals.get('CONNECTIONS')

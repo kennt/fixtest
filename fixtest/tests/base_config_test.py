@@ -77,8 +77,12 @@ class TestConfig(unittest.TestCase):
 class TestFileConfig(unittest.TestCase):
     # pylint: disable=missing-docstring
     def test_fileconfig(self):
+
+        with self.assertRaises(FileNotFoundError):
+            FileConfig("bad_psth.xxxx")
+
         file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                 'test_config.txt')
+                                 'test_config.py')
         config = FileConfig(file_path)
         self.assertIsNotNone(config)
         role_config = config.get_role('exchange')

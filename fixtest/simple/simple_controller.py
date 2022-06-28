@@ -15,7 +15,7 @@ class SimpleController(TestCaseController):
     """ The base class for FIX-based TestCaseControllers.
     """
     def __init__(self, **kwargs):
-        super(SimpleController, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.testcase_id = 'Simple-1'
         self.description = 'Test of the command-line tool'
@@ -31,8 +31,8 @@ class SimpleController(TestCaseController):
             'target_compid': self.link_config['client'],
             })
 
-        self._servers = dict()
-        self._clients = dict()
+        self._servers = {}
+        self._clients = {}
 
         server = {
             'name': 'server-9940',

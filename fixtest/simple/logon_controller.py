@@ -1,13 +1,13 @@
 """ Simple client/server controller for testing.
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """
 
 import logging
 
-from fixtest.base.asserts import *
+from fixtest.base.asserts import assert_is_not_none, assert_tag
 from fixtest.base.controller import TestCaseController
 from fixtest.fix.constants import FIX
 from fixtest.fix.messages import logon_message, logout_message
@@ -21,8 +21,10 @@ class LogonController(TestCaseController):
         communicate with each other.  So they will use
         the same link config.
     """
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self, **kwargs):
-        super(LogonController, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.testcase_id = 'Simple-1'
         self.description = 'Test of the command-line tool'
@@ -47,8 +49,8 @@ class LogonController(TestCaseController):
             'target_compid': self.client_link_config['test-server'],
             })
 
-        self._servers = dict()
-        self._clients = dict()
+        self._servers = {}
+        self._clients = {}
 
         factory = FIXTransportFactory('server-9940',
                                       self.server_config,

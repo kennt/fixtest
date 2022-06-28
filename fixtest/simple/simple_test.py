@@ -7,17 +7,17 @@
 
 import logging
 
-from fixtest.base.asserts import *
+from fixtest.base.asserts import assert_is_not_none
 from fixtest.fix.messages import new_order_message, execution_report
 
-from simple_base import BaseClientServerController
+from fixtest.simple.simple_base import BaseClientServerController
 
 
 class SimpleClientServerController(BaseClientServerController):
     """ The base class for FIX-based TestCaseControllers.
     """
     def __init__(self, **kwargs):
-        super(SimpleClientServerController, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.testcase_id = 'Simple NewOrder test'
         self.description = 'Test of the command-line tool'

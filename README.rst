@@ -96,90 +96,88 @@ class.  Logon/logout are usually performed within the setup/teardown rather
 than part of the test proper.
 
 .. code:: python
-    
+
     import logging
-    import time
-    
-    from fixtest.base.asserts import *
+
+    from fixtest.base.asserts import assert_is_not_none, assert_tag
     from fixtest.base.controller import TestCaseController
-    from fixtest.base.queue import TestInterruptedError
-    from fixtest.base.utils import log_text
     from fixtest.fix.constants import FIX
     from fixtest.fix.messages import logon_message, logout_message
     from fixtest.fix.transport import FIXTransportFactory
     
-    
+
     class LogonController(TestCaseController):
         """ The base class for FIX-based TestCaseControllers.
-    
-            This creates a client and a server that will 
+
+            This creates a client and a server that will
             communicate with each other.  So they will use
             the same link config.
         """
+        # pylint: disable=too-many-instance-attributes
+
         def __init__(self, **kwargs):
-            super(LogonController, self).__init__(**kwargs)
-    
+            super().__init__(**kwargs)
+
             self.testcase_id = 'Simple-1'
             self.description = 'Test of the command-line tool'
-    
+
             config = kwargs['config']
-    
+
             self.server_config = config.get_role('test-server')
-            self.server_config.update({'name': 'server-9000'})
-    
+            self.server_config.update({'name': 'server-9940'})
+
             self.server_link_config = config.get_link('client', 'test-server')
             self.server_link_config.update({
                 'sender_compid': self.server_link_config['test-server'],
                 'target_compid': self.server_link_config['client'],
                 })
-    
+
             self.client_config = config.get_role('client')
-            self.client_config.update({'name': 'client-9000'})
-    
+            self.client_config.update({'name': 'client-9940'})
+
             self.client_link_config = config.get_link('client', 'test-server')
             self.client_link_config.update({
                 'sender_compid': self.client_link_config['client'],
                 'target_compid': self.client_link_config['test-server'],
                 })
-    
-            self._servers = dict()
-            self._clients = dict()
-    
-            factory = FIXTransportFactory('server-9000',
-                                        self.server_config,
-                                        self.server_link_config)
+
+            self._servers = {}
+            self._clients = {}
+
+            factory = FIXTransportFactory('server-9940',
+                                          self.server_config,
+                                          self.server_link_config)
             factory.filter_heartbeat = False
-    
+
             server = {
-                'name': 'server-9000',
+                'name': 'server-9940',
                 'port': self.server_link_config['port'],
                 'factory': factory,
             }
             self._servers[server['name']] = server
-    
+
             # In the client case we do not need to provide a
             # factory, Just need a transport.
             client = {
-                'name': 'client-9000',
+                'name': 'client-9940',
                 'host': self.client_link_config['host'],
                 'port': self.client_link_config['port'],
-                'node': factory.create_transport('client-9000',
-                                                self.client_config,
-                                                self.client_link_config),
+                'node': factory.create_transport('client-9940',
+                                                 self.client_config,
+                                                 self.client_link_config),
             }
             self._clients[client['name']] = client
-    
+
             self._logger = logging.getLogger(__name__)
-    
-    
+
         def clients(self):
             """ The clients that need to be started """
             return self._clients
-    
+
         def servers(self):
             """ The servers that need to be started """
             return self._servers
-    
+
         def setup(self):
             """ For this case, wait until our servers are all
                 connected before continuing with the test.
@@ -188,48 +186,48 @@ than part of the test proper.
             # so startup the clients
             self.wait_for_client_connections(10)
             self.wait_for_server_connections(10)
-    
+
         def teardown(self):
             pass
-    
+
         def run(self):
             """ This test is a demonstration of logon and
                 heartbeat/TestRequest processing.  Usually
                 the logon process should be done from setup().
             """
-            client = self._clients['client-9000']['node']
+            client = self._clients['client-9940']['node']
             client.protocol.heartbeat = 5
             # We only have a single server connection
-            server = self._servers['server-9000']['factory'].servers[0]
+            server = self._servers['server-9940']['factory'].servers[0]
             server.protocol.heartbeat = 5
-    
+
             # client -> server
             client.send_message(logon_message(client))
-    
+
             # server <- client
             message = server.wait_for_message(title='waiting for logon')
             assert_is_not_none(message)
             assert_tag(message, [(35, FIX.LOGON)])
-    
+
             # server -> client
             server.send_message(logon_message(server))
             server.start_heartbeat(True)
-        
+
             # client <- server
             message = client.wait_for_message(title='waiting for logon ack')
             client.start_heartbeat(True)
             assert_is_not_none(message)
             assert_tag(message, [(35, FIX.LOGON)])
-    
+
             # Logout
             client.send_message(logout_message(client))
             message = server.wait_for_message(title='waiting for logout')
             assert_is_not_none(message)
             assert_tag(message, [(35, FIX.LOGOUT)])
-    
+
             server.send_message(logout_message(server))
             server.start_heartbeat(False)
-    
+
             message = client.wait_for_message('waiting for logout ack')
             client.start_heartbeat(False)
             assert_is_not_none(message)
@@ -240,7 +238,7 @@ Running the test
 -----------------
 To run this, use the command line
 
-	fixtest -c simple_config.py testcases/logon_test.py
+	$ fixtest -c fixtest/simple/simple_config.py fixtest/simple/simple_test.py
 
 
 Sample output
@@ -248,51 +246,58 @@ Sample output
 
 .. code:: python
 
-    (fixtest)~/dev/src/fixtest > fixtest -c simple/simple_config.py simple/logon_controller.py 
-    12:52:10.468172: ================
-    12:52:10.468496: Starting test: 2014-08-06
-    12:52:10.468643:   Module: simple/logon_controller.py
-    12:52:10.468778:   Controller: LogonController
-    12:52:10.468908:   Config: simple/simple_config.py
-    12:52:10.470420: 
-    12:52:10.470547:   Test case: Simple-1
-    12:52:10.470657:   Description: Test of the command-line tool
-    12:52:10.470761: ================
-    12:52:10.470868: server:server-9000 starting on port 9000
-    12:52:10.472101: fixtest.fix.transport: server:server-9000 listening on port 9000
-    12:52:10.472997: client:client-9000 attempting localhost:9000
-    12:52:12.810111: client-9000: Connection made
-    12:52:12.810329: fixtest.fix.transport: client:client-9000 connected to localhost:9000
-    12:52:12.810626: Connected: fixtest.fix.transport.FIXTransportFactory : server-9000
-    12:52:12.811074: server-9000: Connection made
-    12:52:13.010270: client-9000: message sent
-        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20140806-12:52:13, 10=045
-    
-    12:52:13.012275: server-9000: message received
-        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20140806-12:52:13, 10=045
-    
-    12:52:13.015563: server-9000: message sent
-        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20140806-12:52:13, 10=045
-    
-    12:52:13.016854: client-9000: message received
-        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20140806-12:52:13, 10=045
-    
-    12:52:13.017925: client-9000: message sent
-        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=2, 52=20140806-12:52:13, 10=053
-    
-    12:52:13.019156: server-9000: message received
-        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=2, 52=20140806-12:52:13, 10=053
-    
-    12:52:13.020144: server-9000: message sent
-        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=2, 52=20140806-12:52:13, 10=053
-    
-    12:52:13.021321: client-9000: message received
-        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=2, 52=20140806-12:52:13, 10=053
-    
-    12:52:13.022400: server-9000: Connection lost
-    12:52:13.022687: client-9000: Connection lost
-    12:52:13.023373: ================
-    12:52:13.023508: Test status: ok
+    20:47:29.508560: ================
+    20:47:29.508693: Starting test: 2022-06-27
+    20:47:29.508736:   Module: fixtest/simple/simple_test.py
+    20:47:29.508771:   Controller: SimpleClientServerController
+    20:47:29.508802:   Config: fixtest/simple/simple_config.py
+    20:47:29.509024:
+    20:47:29.509069:   Test case: Simple NewOrder test
+    20:47:29.509104:   Description: Test of the command-line tool
+    20:47:29.509135: ================
+    20:47:29.509168: server:server-9940 starting on port 9940
+    20:47:29.509656: fixtest.fix.transport: server:server-9940 listening on port 9940
+    20:47:29.510099: client:client-9940 attempting localhost:9940
+    20:47:29.512695: Connected: <class 'fixtest.fix.transport.FIXTransportFactory'> : server-9940
+    20:47:29.512901: server-9940: Connection made
+    20:47:29.513074: client-9940: Connection made
+    20:47:29.513142: fixtest.fix.transport: client:client-9940 connected to localhost:9940
+    20:47:29.714841: client-9940: message sent
+        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20220627-20:47:29, 10=055
+
+    20:47:29.717093: server-9940: message received
+        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20220627-20:47:29, 10=055
+
+    20:47:29.717503: server-9940: message sent
+        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20220627-20:47:29, 10=055
+
+    20:47:29.718031: client-9940: message received
+        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20220627-20:47:29, 10=055
+
+    20:47:29.718405: client-9940: message sent
+        NewOrderSingle : 8=FIX.4.2, 9=139, 35=D, 49=FixClient, 56=FixServer, 11=client-9940/20220627/1, 21=1, 55=abc, 54=0, 60=20220627-20:47:29, 40=1, 38=100, 44=10, 34=2, 52=20220627-20:47:29, 10=098
+
+    20:47:29.718884: server-9940: message received
+        NewOrderSingle : 8=FIX.4.2, 9=139, 35=D, 49=FixClient, 56=FixServer, 11=client-9940/20220627/1, 21=1, 55=abc, 54=0, 60=20220627-20:47:29, 40=1, 38=100, 44=10, 34=2, 52=20220627-20:47:29, 10=098
+
+    20:47:29.719284: server-9940: message sent
+        ExecutionReport : (New) : 8=FIX.4.2, 9=224, 35=8, 49=FixServer, 56=FixClient, 11=client-9940/20220627/1, 21=1, 55=abc, 54=0, 60=20220627-20:47:29, 40=1, 38=100, 44=10, 34=2, 52=20220627-20:47:29, 37=server-9940/20220627/2, 17=server-9940/20220627/1, 20=0, 150=0, 39=0, 151=100, 14=0, 6=0, 10=167
+
+    20:47:29.719792: client-9940: message received
+        ExecutionReport : (New) : 8=FIX.4.2, 9=224, 35=8, 49=FixServer, 56=FixClient, 11=client-9940/20220627/1, 21=1, 55=abc, 54=0, 60=20220627-20:47:29, 40=1, 38=100, 44=10, 34=2, 52=20220627-20:47:29, 37=server-9940/20220627/2, 17=server-9940/20220627/1, 20=0, 150=0, 39=0, 151=100, 14=0, 6=0, 10=167
+
+    20:47:29.720099: client-9940: message sent
+        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=3, 52=20220627-20:47:29, 10=064
+
+    20:47:29.720481: server-9940: message received
+        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=3, 52=20220627-20:47:29, 10=064
+
+    20:47:29.720759: server-9940: message sent
+        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=3, 52=20220627-20:47:29, 10=064
+
+    20:47:29.721129: client-9940: message received
+        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=3, 52=20220627-20:47:29, 10=064
+
 
 
 More sample code
@@ -304,125 +309,118 @@ code were removed and placed in the base class setup/teardown functions.
 Thus leaving run() to perform the real test work.
 
 .. code:: python
-    
+
     import logging
-    
-    from fixtest.base.asserts import *
-    from fixtest.fix.constants import FIX
+
+    from fixtest.base.asserts import assert_is_not_none
     from fixtest.fix.messages import new_order_message, execution_report
-    
-    from simple_base import BaseClientServerController
-    
-    
+
+    from fixtest.simple.simple_base import BaseClientServerController
+
+
     class SimpleClientServerController(BaseClientServerController):
         """ The base class for FIX-based TestCaseControllers.
         """
         def __init__(self, **kwargs):
-            super(SimpleClientServerController, self).__init__(**kwargs)
-    
+            super().__init__(**kwargs)
+
             self.testcase_id = 'Simple NewOrder test'
             self.description = 'Test of the command-line tool'
-    
+
             self._logger = logging.getLogger(__name__)
-    
+
         def run(self):
             """ Run the test.  Here we send a new_order and
                 then a modify.
             """
             # client -> server
-            self.client.send_message(new_order_message(self.client,
-                symbol='abc',
-                side='0',
-                order_type='1',
-                extra_tags=[(38, 100),      # orderQty
-                            (44, 10),       # price
-                        ]))
-    
+            self.client.send_message(
+                new_order_message(self.client,
+                                  symbol='abc',
+                                  side='0',
+                                  order_type='1',
+                                  extra_tags=[(38, 100),      # orderQty
+                                              (44, 10), ]))   # price
+
             # server <- client
             message = self.server.wait_for_message('waiting for new order')
             assert_is_not_none(message)
-    
+
             # server -> client
-            self.server.send_message(execution_report(self.server,
-                message,
-                exec_trans_type='0',
-                exec_type='0',
-                ord_status='0',
-                symbol='abc',
-                side='0',
-                leaves_qty='100',
-                cum_qty='0',
-                avg_px='0'))
-    
+            self.server.send_message(
+                execution_report(self.server,
+                                 message,
+                                 exec_trans_type='0',
+                                 exec_type='0',
+                                 ord_status='0',
+                                 symbol='abc',
+                                 side='0',
+                                 leaves_qty='100',
+                                 cum_qty='0',
+                                 avg_px='0'))
+
             # client <- server
             message = self.client.wait_for_message('waiting for new order ack')
-            assert_is_not_none(message)```
+            assert_is_not_none(message)
 
 
 Here is the resulting output:
 
 .. code:: python
 
-    17:48:15.066436: ================
-    17:48:15.066607: Starting test: 2014-08-07
-    17:48:15.066684:   Module: simple/simple_test.py
-    17:48:15.066757:   Controller: SimpleClientServerController
-    17:48:15.066827:   Config: simple/simple_config.py
-    17:48:15.067619: 
-    17:48:15.067700:   Test case: Simple NewOrder test
-    17:48:15.067772:   Description: Test of the command-line tool
-    17:48:15.067841: ================
-    17:48:15.067912: server:server-9940 starting on port 9940
-    17:48:15.068883: fixtest.fix.transport: server:server-9940 listening on port 9940
-    17:48:15.069471: client:client-9940 attempting localhost:9940
-    17:48:15.112361: Connected: fixtest.fix.transport.FIXTransportFactory : server-9940
-    17:48:15.112912: server-9940: Connection made
-    17:48:15.113281: client-9940: Connection made
-    17:48:15.113377: fixtest.fix.transport: client:client-9940 connected to localhost:9940
-    17:48:15.270715: client-9940: message sent
-        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20140807-17:48:15, 10=058
-    
-    17:48:15.271588: server-9940: message received
-        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20140807-17:48:15, 10=058
-    
-    17:48:15.272481: server-9940: message sent
-        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20140807-17:48:15, 10=058
-    
-    17:48:15.273204: client-9940: message received
-        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20140807-17:48:15, 10=058
-    
-    17:48:15.274292: client-9940: message sent
-    NewOrderSingle : 8=FIX.4.2, 9=139, 35=D, 49=FixClient, 56=FixServer, 11=client-9940/20140807/1, 21=1, 55=abc, 54=0,     60=20140807-17:48:15, 40=1, 38=100, 44=10, 34=2, 52=20140807-17:48:15, 10=105
-    
-    17:48:15.275188: server-9940: message received
-    NewOrderSingle : 8=FIX.4.2, 9=139, 35=D, 49=FixClient, 56=FixServer, 11=client-9940/20140807/1, 21=1, 55=abc, 54=0,     60=20140807-17:48:15, 40=1, 38=100, 44=10, 34=2, 52=20140807-17:48:15, 10=105
-    
-    17:48:15.276382: server-9940: message sent
-    ExecutionReport : (New) : 8=FIX.4.2, 9=224, 35=8, 49=FixServer, 56=FixClient, 11=client-9940/20140807/1, 21=1, 55=abc, 54=0, 60=20140807-17:48:15, 40=1, 38=100, 44=10, 34=2, 52=20140807-17:48:15, 37=server-9940/20140807/2, 17=server-   9940/20140807/1, 20=0, 150=0, 39=0, 151=100, 14=0, 6=0, 10=176
-    
-    17:48:15.277720: client-9940: message received
-    ExecutionReport : (New) : 8=FIX.4.2, 9=224, 35=8, 49=FixServer, 56=FixClient, 11=client-9940/20140807/1, 21=1, 55=abc, 54=0, 60=20140807-17:48:15, 40=1, 38=100, 44=10, 34=2, 52=20140807-17:48:15, 37=server-9940/20140807/2, 17=server-   9940/20140807/1, 20=0, 150=0, 39=0, 151=100, 14=0, 6=0, 10=176
-    
-    17:48:15.280502: client-9940: message sent
-        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=3, 52=20140807-17:48:15, 10=067
-    
-    17:48:15.281089: server-9940: message received
-        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=3, 52=20140807-17:48:15, 10=067
-    
-    17:48:15.282183: server-9940: message sent
-        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=3, 52=20140807-17:48:15, 10=067
-    
-    17:48:15.282773: client-9940: message received
-        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=3, 52=20140807-17:48:15, 10=067
-    
-    17:48:15.284066: server-9940: Connection lost
-    17:48:15.284246: client-9940: Connection lost
-    17:48:15.284561: ================
-    17:48:15.284648: Test status: ok
+    02:51:09.094091: ================
+    02:51:09.094253: Starting test: 2022-06-28
+    02:51:09.094307:   Module: fixtest/simple/logon_controller.py
+    02:51:09.094350:   Controller: LogonController
+    02:51:09.094388:   Config: fixtest/simple/simple_config.py
+    02:51:09.094705:
+    02:51:09.094786:   Test case: Simple-1
+    02:51:09.094826:   Description: Test of the command-line tool
+    02:51:09.094860: ================
+    02:51:09.094895: server:server-9940 starting on port 9940
+    02:51:09.095596: fixtest.fix.transport: server:server-9940 listening on port 9940
+    02:51:09.096211: client:client-9940 attempting localhost:9940
+    02:51:09.099396: Connected: <class 'fixtest.fix.transport.FIXTransportFactory'> : server-9940
+    02:51:09.099672: server-9940: Connection made
+    02:51:09.099871: client-9940: Connection made
+    02:51:09.099946: fixtest.fix.transport: client:client-9940 connected to localhost:9940
+    02:51:09.301314: client-9940: message sent
+        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20220628-02:51:09, 10=049
+
+    02:51:09.302029: server-9940: message received
+        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixClient, 56=FixServer, 98=0, 108=5, 34=1, 52=20220628-02:51:09, 10=049
+
+    02:51:09.303737: server-9940: message sent
+        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20220628-02:51:09, 10=049
+
+    02:51:09.304192: client-9940: message received
+        Logon : 8=FIX.4.2, 9=68, 35=A, 49=FixServer, 56=FixClient, 98=0, 108=5, 34=1, 52=20220628-02:51:09, 10=049
+
+    02:51:09.304511: client-9940: message sent
+        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=2, 52=20220628-02:51:09, 10=057
+
+    02:51:09.304932: server-9940: message received
+        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixClient, 56=FixServer, 34=2, 52=20220628-02:51:09, 10=057
+
+    02:51:09.305208: server-9940: message sent
+        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=2, 52=20220628-02:51:09, 10=057
+
+    02:51:09.305609: client-9940: message received
+        Logout : 8=FIX.4.2, 9=57, 35=5, 49=FixServer, 56=FixClient, 34=2, 52=20220628-02:51:09, 10=057
+
+    02:51:09.306041: client-9940: Connection lost
+    02:51:09.306355: server-9940: Connection lost
+    02:51:09.306632: ================
+    02:51:09.306713: Test status: ok
 
 
 Changelog
 ---------
+
+0.2.0
+=====
+Upgraded code to Python 3
+Moved simple to fixtest/simple (use fixtest.simple instead of simple)
 
 0.1.1
 =====

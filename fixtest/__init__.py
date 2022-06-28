@@ -4,3 +4,5 @@
     See LICENSE for details
 
 """
+
+VERSION_STRING = '0.2.0'
